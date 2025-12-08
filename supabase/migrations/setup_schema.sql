@@ -11,9 +11,34 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- 테이블 소유자 설정
 ALTER TABLE public.users OWNER TO postgres;
 
--- Row Level Security (RLS) 비활성화
--- 개발 단계에서는 RLS를 끄고, 프로덕션에서는 활성화하는 것을 권장합니다
-ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+-- Row Level Security (RLS) 활성화
+-- Clerk 인증된 사용자만 자신의 데이터에 접근할 수 있도록 제한
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- Clerk 사용자만 자신의 데이터 조회 가능
+CREATE POLICY "Users can view own data"
+ON public.users FOR SELECT
+TO authenticated
+USING (clerk_id = (SELECT auth.jwt()->>'sub'));
+
+-- Clerk 사용자만 자신의 데이터 수정 가능
+CREATE POLICY "Users can update own data"
+ON public.users FOR UPDATE
+TO authenticated
+USING (clerk_id = (SELECT auth.jwt()->>'sub'))
+WITH CHECK (clerk_id = (SELECT auth.jwt()->>'sub'));
+
+-- Clerk 사용자는 자신의 데이터 삽입 가능 (계정 생성 시)
+CREATE POLICY "Users can insert own data"
+ON public.users FOR INSERT
+TO authenticated
+WITH CHECK (clerk_id = (SELECT auth.jwt()->>'sub'));
+
+-- 관리자 권한으로 모든 작업 허용 (서비스 역할)
+CREATE POLICY "Service role has full access"
+ON public.users FOR ALL
+TO service_role
+USING (true);
 
 -- 권한 부여
 GRANT ALL ON TABLE public.users TO anon;

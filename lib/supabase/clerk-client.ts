@@ -1,16 +1,18 @@
 "use client";
 
 import { createClient } from "@supabase/supabase-js";
-import { useAuth } from "@clerk/nextjs";
+import { useSession } from "@clerk/nextjs";
 import { useMemo } from "react";
+import { validateSupabaseEnv } from "./utils";
 
 /**
  * Clerk + Supabase 네이티브 통합 클라이언트 (Client Component용)
  *
  * 2025년 4월부터 권장되는 방식:
  * - JWT 템플릿 불필요
- * - useAuth().getToken()으로 현재 세션 토큰 사용
+ * - session.getToken()으로 현재 세션 토큰 사용
  * - React Hook으로 제공되어 Client Component에서 사용
+ * - Clerk의 third-party auth provider 통합
  *
  * @example
  * ```tsx
@@ -22,7 +24,12 @@ import { useMemo } from "react";
  *   const supabase = useClerkSupabaseClient();
  *
  *   async function fetchData() {
- *     const { data } = await supabase.from('table').select('*');
+ *     const { data, error } = await supabase
+ *       .from('table')
+ *       .select('*')
+ *       .order('created_at', { ascending: false });
+ *
+ *     if (error) throw error;
  *     return data;
  *   }
  *
@@ -31,18 +38,23 @@ import { useMemo } from "react";
  * ```
  */
 export function useClerkSupabaseClient() {
-  const { getToken } = useAuth();
+  const { session } = useSession();
 
   const supabase = useMemo(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const { url, anonKey } = validateSupabaseEnv();
 
-    return createClient(supabaseUrl, supabaseKey, {
+    return createClient(url, anonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+      },
       async accessToken() {
-        return (await getToken()) ?? null;
+        // Clerk 세션 토큰을 Supabase에 전달
+        // Supabase는 Clerk의 third-party auth provider로 설정되어 이 토큰을 검증
+        return session?.getToken() ?? null;
       },
     });
-  }, [getToken]);
+  }, [session]);
 
   return supabase;
 }
