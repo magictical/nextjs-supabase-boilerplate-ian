@@ -3,7 +3,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { koKR } from "@clerk/localizations";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import Navbar from "@/components/Navbar";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Header } from "@/components/layout/Header";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { SyncUserProvider } from "@/components/providers/sync-user-provider";
 import "./globals.css";
 
@@ -87,8 +89,27 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <SyncUserProvider>
-            <Navbar />
-            {children}
+            <div className="min-h-screen bg-background">
+              {/* Desktop & Tablet: Sidebar */}
+              <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:z-50">
+                <div className="w-16 md:w-60 h-screen">
+                  <Sidebar />
+                </div>
+              </aside>
+
+              {/* Mobile: Header */}
+              <Header />
+
+              {/* Main Content */}
+              <main className="md:ml-16 lg:ml-60 pt-16 md:pt-0">
+                <div className="max-w-[630px] mx-auto min-h-screen bg-background">
+                  {children}
+                </div>
+              </main>
+
+              {/* Mobile: Bottom Navigation */}
+              <BottomNav />
+            </div>
           </SyncUserProvider>
         </body>
       </html>

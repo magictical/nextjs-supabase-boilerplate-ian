@@ -41,7 +41,21 @@ export function useClerkSupabaseClient() {
   const { session } = useSession();
 
   const supabase = useMemo(() => {
-    const { url, anonKey } = validateSupabaseEnv();
+    // 클라이언트에서 환경변수 직접 접근 (NEXT_PUBLIC_ 접두사 필요)
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/^["']|["']$/g, '');
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim().replace(/^["']|["']$/g, '');
+
+    if (!url || !anonKey) {
+      throw new Error(
+        `Missing Supabase environment variables.\n` +
+        `NEXT_PUBLIC_SUPABASE_URL: ${url ? 'OK' : 'MISSING'}\n` +
+        `NEXT_PUBLIC_SUPABASE_ANON_KEY: ${anonKey ? 'OK' : 'MISSING'}\n\n` +
+        `Please ensure:\n` +
+        `1. .env file exists in project root\n` +
+        `2. Variables are prefixed with NEXT_PUBLIC_\n` +
+        `3. Development server was restarted`
+      );
+    }
 
     return createClient(url, anonKey, {
       auth: {
