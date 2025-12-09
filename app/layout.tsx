@@ -15,13 +15,17 @@ const koreanLocalization = {
   // 에러 메시지 한국어화
   unstable__errors: {
     ...koKR.unstable__errors,
-    not_allowed_access: "이메일 도메인이 허용되지 않습니다. 관리자에게 문의해주세요.",
+    not_allowed_access:
+      "이메일 도메인이 허용되지 않습니다. 관리자에게 문의해주세요.",
     form_password_incorrect: "비밀번호가 올바르지 않습니다.",
-    form_username_invalid_character: "사용자 이름에 허용되지 않는 문자가 포함되어 있습니다.",
+    form_username_invalid_character:
+      "사용자 이름에 허용되지 않는 문자가 포함되어 있습니다.",
     form_email_invalid: "올바른 이메일 주소를 입력해주세요.",
     form_password_length_too_short: "비밀번호는 최소 8자 이상이어야 합니다.",
-    form_password_pwned: "이 비밀번호는 보안 문제가 발견되어 사용할 수 없습니다.",
-    form_password_not_strong_enough: "비밀번호가 너무 약합니다. 대문자, 소문자, 숫자, 특수문자를 포함해주세요.",
+    form_password_pwned:
+      "이 비밀번호는 보안 문제가 발견되어 사용할 수 없습니다.",
+    form_password_not_strong_enough:
+      "비밀번호가 너무 약합니다. 대문자, 소문자, 숫자, 특수문자를 포함해주세요.",
     identifier_not_found: "등록되지 않은 사용자입니다.",
     form_param_format_invalid: "입력 형식이 올바르지 않습니다.",
     form_param_nil: "필수 입력 항목입니다.",

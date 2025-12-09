@@ -247,6 +247,53 @@ export interface UploadFile {
   preview: string;
   name: string;
   size: number;
+}
+
+// ============================================
+// 홈 피드 관련 타입들 (PostCard, PostFeed)
+// ============================================
+
+/** 게시물 + 사용자 정보 (홈 피드용) */
+export interface PostWithUser {
+  post_id: UUID;
+  user_id: UUID;
+  image_url: string;
+  caption?: string;
+  created_at: Timestamp;
+  likes_count: number;
+  comments_count: number;
+  // 사용자 정보
+  name: string;
+  clerk_id: ClerkUserId;
+  // 현재 사용자의 좋아요 상태
+  isLiked: boolean;
+  // 최신 댓글 2개
+  recentComments: CommentWithUser[];
+}
+
+/** 댓글 + 사용자 정보 */
+export interface CommentWithUser {
+  id: UUID;
+  post_id: UUID;
+  user_id: UUID;
+  content: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  // 사용자 정보
+  name: string;
+  clerk_id: ClerkUserId;
+}
+
+/** 게시물 피드 API 응답 */
+export interface PostsResponse {
+  data: PostWithUser[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
   type: string;
 }
 
@@ -334,4 +381,7 @@ export type {
   RequiredBy,
   WithoutId,
   WithoutTimestamps,
+  PostWithUser,
+  CommentWithUser,
+  PostsResponse,
 };
