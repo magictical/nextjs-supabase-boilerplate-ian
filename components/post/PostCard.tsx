@@ -142,7 +142,7 @@ export function PostCard({
           </time>
           <PostMenu
             postId={post.post_id}
-            isOwner={currentUserId === post.user_id}
+            isOwner={currentUserId === post.clerk_id}
             onDelete={onDelete}
           />
         </div>
