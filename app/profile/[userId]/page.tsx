@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { ProfilePageClient } from "@/components/profile/ProfilePageClient";
 
 /**
@@ -18,6 +19,21 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const { userId } = await params;
 
   try {
+    // 현재 로그인한 사용자 확인
+    const { userId: currentUserId } = await auth();
+
+    // 현재 사용자의 Supabase user_id 조회 (팔로우 버튼용)
+    let currentUserSupabaseId = null;
+    if (currentUserId) {
+      const supabase = (await import('@/lib/supabase/server')).createClerkSupabaseClient();
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', currentUserId)
+        .single();
+      currentUserSupabaseId = userData?.id || null;
+    }
+
     // 사용자 정보 조회
     const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/users/${userId}`, {
       cache: 'no-store', // 실시간 데이터 필요
@@ -39,6 +55,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         user={user}
         isFollowing={isFollowing}
         isOwnProfile={isOwnProfile}
+        currentUserSupabaseId={currentUserSupabaseId}
       />
     );
   } catch (error) {

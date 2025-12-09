@@ -52,34 +52,40 @@ export async function GET(
     // 2. 본인 프로필 여부 확인
     const isOwnProfile = currentUserId === requestedUserId;
 
-    // 3. 팔로우 관계 확인 (팔로우 기능 구현 전까지는 false)
-    // TODO: 팔로우 기능 구현 시 실제 팔로우 관계 확인 로직 추가
+    // 3. 팔로우 관계 확인
     let isFollowing = false;
 
-    // 팔로우 기능이 구현되면 아래 로직으로 교체
-    /*
     if (currentUserId && !isOwnProfile) {
-      const { data: followData, error: followError } = await supabase
-        .from("follows")
+      // 현재 사용자의 Supabase user_id 조회
+      const { data: currentUserData, error: currentUserError } = await supabase
+        .from("users")
         .select("id")
-        .eq("follower_id", (
-          await supabase
-            .from("users")
-            .select("id")
-            .eq("clerk_id", currentUserId)
-            .single()
-        ).data?.id)
-        .eq("following_id", userData.user_id)
+        .eq("clerk_id", currentUserId)
         .single();
 
-      if (followError) {
-        console.error("Follow check error:", followError);
-        // 에러가 발생해도 프로필 조회는 계속 진행
+      if (currentUserError || !currentUserData) {
+        console.error("Current user lookup error:", currentUserError);
+        // 에러가 발생해도 프로필 조회는 계속 진행 (isFollowing은 false로 유지)
       } else {
-        isFollowing = !!followData;
+        // 팔로우 관계 확인
+        const { data: followData, error: followError } = await supabase
+          .from("follows")
+          .select("id")
+          .eq("follower_id", currentUserData.id)
+          .eq("following_id", userData.user_id)
+          .single();
+
+        if (followError) {
+          // 팔로우 관계가 없는 경우는 정상 (single()이므로 에러 발생)
+          if (followError.code !== 'PGRST116') { // PGRST116: No rows found
+            console.error("Follow check error:", followError);
+          }
+          // isFollowing은 이미 false로 초기화되어 있음
+        } else {
+          isFollowing = !!followData;
+        }
       }
     }
-    */
 
     return NextResponse.json({
       user: userData,

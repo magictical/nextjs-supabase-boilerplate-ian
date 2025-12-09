@@ -2,6 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { UserStats } from "@/lib/types";
+import { FollowButton } from "./FollowButton";
 
 /**
  * 프로필 페이지 헤더 컴포넌트
@@ -16,15 +17,19 @@ import { UserStats } from "@/lib/types";
 interface ProfileHeaderProps {
   user: UserStats;
   isOwnProfile: boolean;
-  isFollowing?: boolean; // 팔로우 기능 구현 전까지는 optional
-  onFollowChange?: (isFollowing: boolean) => void; // 팔로우 기능 구현 전까지는 optional
+  isFollowing: boolean;
+  currentUserSupabaseId?: string;
+  onFollow?: (userId: string) => void;
+  onUnfollow?: (userId: string) => void;
 }
 
 export function ProfileHeader({
   user,
   isOwnProfile,
-  isFollowing = false,
-  onFollowChange
+  isFollowing,
+  currentUserSupabaseId,
+  onFollow,
+  onUnfollow
 }: ProfileHeaderProps) {
   const { user: currentUser } = useUser();
 
@@ -38,11 +43,6 @@ export function ProfileHeader({
     return count.toString();
   };
 
-  // 팔로우 버튼 클릭 핸들러 (팔로우 기능 구현 전까지는 UI만)
-  const handleFollowClick = () => {
-    if (!onFollowChange) return;
-    onFollowChange(!isFollowing);
-  };
 
   // 프로필 편집 버튼 클릭 (1차 MVP 제외)
   const handleEditProfile = () => {
@@ -102,17 +102,14 @@ export function ProfileHeader({
                     프로필 편집
                   </button>
                 ) : (
-                  // 타인 프로필: 팔로우 버튼 (팔로우 기능 구현 전까지는 UI만)
-                  <button
-                    onClick={handleFollowClick}
-                    className={`px-6 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-                      isFollowing
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
-                  >
-                    {isFollowing ? '팔로잉' : '팔로우'}
-                  </button>
+                  // 타인 프로필: 팔로우 버튼
+                  <FollowButton
+                    targetUserId={user.user_id}
+                    currentUserId={currentUserSupabaseId}
+                    isFollowing={isFollowing}
+                    onFollow={onFollow}
+                    onUnfollow={onUnfollow}
+                  />
                 )}
               </div>
             </div>

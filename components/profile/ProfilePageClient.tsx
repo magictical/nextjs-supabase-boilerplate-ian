@@ -5,6 +5,7 @@ import { ProfileHeader } from "./ProfileHeader";
 import { PostGrid } from "./PostGrid";
 import { PostModal } from "@/components/post/PostModal";
 import { UserStats } from "@/lib/types";
+import { useUser } from "@clerk/nextjs";
 
 /**
  * 프로필 페이지 클라이언트 컴포넌트
@@ -17,15 +18,20 @@ interface ProfilePageClientProps {
   user: UserStats;
   isFollowing: boolean;
   isOwnProfile: boolean;
+  currentUserSupabaseId?: string;
 }
 
 export function ProfilePageClient({
   userId,
   user,
-  isFollowing,
+  isFollowing: initialIsFollowing,
   isOwnProfile,
+  currentUserSupabaseId,
 }: ProfilePageClientProps) {
+  const { user: clerkUser } = useUser();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [userStats, setUserStats] = useState(user);
 
   // 게시물 클릭 핸들러
   const handlePostClick = (postId: string) => {
@@ -37,17 +43,36 @@ export function ProfilePageClient({
     setSelectedPostId(null);
   };
 
+  // 팔로우 성공 핸들러
+  const handleFollow = async (targetUserId: string) => {
+    setIsFollowing(true);
+    // 통계 정보 업데이트 (followers_count +1)
+    setUserStats(prev => ({
+      ...prev,
+      followers_count: prev.followers_count + 1
+    }));
+  };
+
+  // 언팔로우 성공 핸들러
+  const handleUnfollow = async (targetUserId: string) => {
+    setIsFollowing(false);
+    // 통계 정보 업데이트 (followers_count -1)
+    setUserStats(prev => ({
+      ...prev,
+      followers_count: Math.max(0, prev.followers_count - 1)
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 프로필 헤더 */}
       <ProfileHeader
-        user={user}
+        user={userStats}
         isOwnProfile={isOwnProfile}
         isFollowing={isFollowing}
-        onFollowChange={(isFollowing) => {
-          // 팔로우 기능 구현 시 여기에 로직 추가
-          console.log('Follow change:', isFollowing);
-        }}
+        currentUserSupabaseId={currentUserSupabaseId}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
       />
 
       {/* 게시물 그리드 */}
