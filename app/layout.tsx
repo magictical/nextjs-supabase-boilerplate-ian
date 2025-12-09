@@ -96,7 +96,7 @@ export default function RootLayout({
             <div className="min-h-screen bg-background">
               {/* Desktop & Tablet: Sidebar */}
               <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:z-50">
-                <div className="w-16 md:w-60 h-screen">
+                <div className="w-16 lg:w-60 h-screen">
                   <Sidebar />
                 </div>
               </aside>

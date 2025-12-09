@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PostCard } from "./PostCard";
 import { PostCardSkeleton } from "./PostCardSkeleton";
+import { PostModal } from "./PostModal";
 import { PostWithUser, PostsResponse } from "@/lib/types";
 
 /**
@@ -28,55 +29,62 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(initialPosts.length);
 
+  // 게시물 상세 모달 상태
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [selectedPostIndex, setSelectedPostIndex] = useState<number>(-1);
+
   const sentinelRef = useRef<HTMLDivElement>(null);
   const isFetchingRef = useRef(false);
 
   const limit = 10;
 
   // 게시물 목록 조회 함수
-  const fetchPosts = useCallback(async (currentOffset: number, append = false) => {
-    if (isFetchingRef.current) return;
+  const fetchPosts = useCallback(
+    async (currentOffset: number, append = false) => {
+      if (isFetchingRef.current) return;
 
-    try {
-      isFetchingRef.current = true;
+      try {
+        isFetchingRef.current = true;
 
-      const params = new URLSearchParams({
-        limit: limit.toString(),
-        offset: currentOffset.toString(),
-      });
+        const params = new URLSearchParams({
+          limit: limit.toString(),
+          offset: currentOffset.toString(),
+        });
 
-      if (userId) {
-        params.append("userId", userId);
+        if (userId) {
+          params.append("userId", userId);
+        }
+
+        const response = await fetch(`/api/posts?${params}`);
+        const data: PostsResponse = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch posts");
+        }
+
+        if (append) {
+          setPosts((prev) => [...prev, ...data.data]);
+        } else {
+          setPosts(data.data);
+        }
+
+        setHasMore(data.pagination.hasMore);
+        setOffset(currentOffset + data.data.length);
+        setError(null);
+      } catch (err) {
+        console.error("PostFeed fetch error:", err);
+        const errorMessage =
+          err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다";
+        setError(errorMessage);
+
+        // 에러가 발생하면 더 이상 데이터를 로드하지 않음
+        setHasMore(false);
+      } finally {
+        isFetchingRef.current = false;
       }
-
-      const response = await fetch(`/api/posts?${params}`);
-      const data: PostsResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch posts");
-      }
-
-      if (append) {
-        setPosts(prev => [...prev, ...data.data]);
-      } else {
-        setPosts(data.data);
-      }
-
-      setHasMore(data.pagination.hasMore);
-      setOffset(currentOffset + data.data.length);
-      setError(null);
-
-    } catch (err) {
-      console.error("PostFeed fetch error:", err);
-      const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다";
-      setError(errorMessage);
-
-      // 에러가 발생하면 더 이상 데이터를 로드하지 않음
-      setHasMore(false);
-    } finally {
-      isFetchingRef.current = false;
-    }
-  }, [userId, limit]);
+    },
+    [userId, limit],
+  );
 
   // 초기 데이터 로드 (initialPosts가 없을 때)
   useEffect(() => {
@@ -104,7 +112,12 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
     const observer = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
-        if (entry.isIntersecting && hasMore && !isLoadingMore && !isFetchingRef.current) {
+        if (
+          entry.isIntersecting &&
+          hasMore &&
+          !isLoadingMore &&
+          !isFetchingRef.current
+        ) {
           setIsLoadingMore(true);
           fetchPosts(offset, true).finally(() => setIsLoadingMore(false));
         }
@@ -112,7 +125,7 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
       {
         rootMargin: "100px", // 100px 전에 로드 시작
         threshold: 0.1,
-      }
+      },
     );
 
     observer.observe(sentinelRef.current);
@@ -127,10 +140,10 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
   // 좋아요 추가 핸들러
   const handleLike = useCallback(async (postId: string) => {
     try {
-      const response = await fetch('/api/likes', {
-        method: 'POST',
+      const response = await fetch("/api/likes", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ post_id: postId }),
       });
@@ -138,37 +151,41 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '좋아요 추가에 실패했습니다');
+        throw new Error(data.error || "좋아요 추가에 실패했습니다");
       }
 
       // 게시물 상태 업데이트
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
           post.post_id === postId
             ? {
                 ...post,
                 isLiked: true,
-                likes_count: post.likes_count + 1
+                likes_count: post.likes_count + 1,
               }
-            : post
-        )
+            : post,
+        ),
       );
 
       console.log("Liked post:", postId);
     } catch (error) {
       console.error("Like error:", error);
       // 사용자에게 에러 알림 (실제 앱에서는 toast 사용)
-      alert(error instanceof Error ? error.message : '좋아요 처리 중 오류가 발생했습니다');
+      alert(
+        error instanceof Error
+          ? error.message
+          : "좋아요 처리 중 오류가 발생했습니다",
+      );
     }
   }, []);
 
   // 좋아요 제거 핸들러
   const handleUnlike = useCallback(async (postId: string) => {
     try {
-      const response = await fetch('/api/likes', {
-        method: 'DELETE',
+      const response = await fetch("/api/likes", {
+        method: "DELETE",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ post_id: postId }),
       });
@@ -176,27 +193,31 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '좋아요 제거에 실패했습니다');
+        throw new Error(data.error || "좋아요 제거에 실패했습니다");
       }
 
       // 게시물 상태 업데이트
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
           post.post_id === postId
             ? {
                 ...post,
                 isLiked: false,
-                likes_count: post.likes_count - 1
+                likes_count: post.likes_count - 1,
               }
-            : post
-        )
+            : post,
+        ),
       );
 
       console.log("Unliked post:", postId);
     } catch (error) {
       console.error("Unlike error:", error);
       // 사용자에게 에러 알림 (실제 앱에서는 toast 사용)
-      alert(error instanceof Error ? error.message : '좋아요 제거 중 오류가 발생했습니다');
+      alert(
+        error instanceof Error
+          ? error.message
+          : "좋아요 제거 중 오류가 발생했습니다",
+      );
     }
   }, []);
 
@@ -204,12 +225,12 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
   const handleComment = useCallback(async (postId: string, content: string) => {
     try {
       // Optimistic UI update
-      setPosts(prevPosts =>
-        prevPosts.map(p =>
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
           p.post_id === postId
             ? { ...p, comments_count: p.comments_count + 1 }
-            : p
-        )
+            : p,
+        ),
       );
 
       const response = await fetch("/api/comments", {
@@ -226,29 +247,36 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
       const newComment = await response.json();
 
       // 실제 댓글 목록 업데이트 (최신 댓글로 교체)
-      setPosts(prevPosts =>
-        prevPosts.map(p => {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) => {
           if (p.post_id === postId) {
-            const updatedComments = [newComment, ...p.recentComments].slice(0, 2);
+            const updatedComments = [newComment, ...p.recentComments].slice(
+              0,
+              2,
+            );
             return {
               ...p,
               recentComments: updatedComments,
             };
           }
           return p;
-        })
+        }),
       );
     } catch (error) {
       console.error("댓글 작성 에러:", error);
-      alert(error instanceof Error ? error.message : "댓글 작성 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "댓글 작성 중 오류가 발생했습니다.",
+      );
 
       // Rollback UI
-      setPosts(prevPosts =>
-        prevPosts.map(p =>
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
           p.post_id === postId
             ? { ...p, comments_count: Math.max(0, p.comments_count - 1) }
-            : p
-        )
+            : p,
+        ),
       );
     }
   }, []);
@@ -257,17 +285,19 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
   const handleCommentDelete = useCallback(async (commentId: string) => {
     try {
       // Optimistic UI update
-      setPosts(prevPosts =>
-        prevPosts.map(p => {
-          if (p.recentComments.some(c => c.id === commentId)) {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) => {
+          if (p.recentComments.some((c) => c.id === commentId)) {
             return {
               ...p,
               comments_count: Math.max(0, p.comments_count - 1),
-              recentComments: p.recentComments.filter(c => c.id !== commentId),
+              recentComments: p.recentComments.filter(
+                (c) => c.id !== commentId,
+              ),
             };
           }
           return p;
-        })
+        }),
       );
 
       const response = await fetch("/api/comments", {
@@ -282,12 +312,17 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
       }
     } catch (error) {
       console.error("댓글 삭제 에러:", error);
-      alert(error instanceof Error ? error.message : "댓글 삭제 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "댓글 삭제 중 오류가 발생했습니다.",
+      );
 
       // Rollback UI (댓글 수 증가 및 목록 복원 시도)
-      setPosts(prevPosts =>
-        prevPosts.map(p => {
-          if (p.recentComments.length < 2) { // 최근 댓글 목록이 2개 미만이었을 때만 복원 시도
+      setPosts((prevPosts) =>
+        prevPosts.map((p) => {
+          if (p.recentComments.length < 2) {
+            // 최근 댓글 목록이 2개 미만이었을 때만 복원 시도
             return {
               ...p,
               comments_count: p.comments_count + 1,
@@ -295,16 +330,88 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
             };
           }
           return p;
-        })
+        }),
       );
     }
   }, []);
 
-  // 게시물 상세 보기 핸들러 (미구현 - 추후 구현)
-  const handleShowDetail = useCallback((postId: string) => {
-    console.log("Show detail for post:", postId);
-    // TODO: 모달 또는 페이지 네비게이션
+  // 모달 내 댓글 변경 핸들러 (PostFeed 상태 동기화용)
+  const handleCommentChange = useCallback(
+    (postId: string, commentsCount: number, newComment?: any) => {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p.post_id === postId
+            ? {
+                ...p,
+                comments_count: commentsCount,
+                recentComments: newComment
+                  ? [newComment, ...p.recentComments].slice(0, 2)
+                  : p.recentComments,
+              }
+            : p,
+        ),
+      );
+    },
+    [],
+  );
+
+  // 모달 내 댓글 삭제 핸들러 (PostFeed 상태 동기화용)
+  const handleCommentDeleteSync = useCallback(
+    (postId: string, commentId: string, commentsCount: number) => {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p.post_id === postId
+            ? {
+                ...p,
+                comments_count: commentsCount,
+                recentComments: p.recentComments.filter(
+                  (c) => c.id !== commentId,
+                ),
+              }
+            : p,
+        ),
+      );
+    },
+    [],
+  );
+
+  // 게시물 상세 보기 핸들러
+  const handleShowDetail = useCallback(
+    (postId: string) => {
+      const postIndex = posts.findIndex((post) => post.post_id === postId);
+      if (postIndex !== -1) {
+        setSelectedPostId(postId);
+        setSelectedPostIndex(postIndex);
+      }
+    },
+    [posts],
+  );
+
+  // 모달 닫기 핸들러
+  const handleCloseModal = useCallback(() => {
+    setSelectedPostId(null);
+    setSelectedPostIndex(-1);
   }, []);
+
+  // 이전 게시물로 이동
+  const handlePreviousPost = useCallback(() => {
+    if (selectedPostIndex > 0) {
+      const prevIndex = selectedPostIndex - 1;
+      const prevPost = posts[prevIndex];
+      setSelectedPostId(prevPost.post_id);
+      setSelectedPostIndex(prevIndex);
+    }
+  }, [selectedPostIndex, posts]);
+
+  // 다음 게시물로 이동
+  const handleNextPost = useCallback(() => {
+    if (selectedPostIndex < posts.length - 1) {
+      const nextIndex = selectedPostIndex + 1;
+      const nextPost = posts[nextIndex];
+      setSelectedPostId(nextPost.post_id);
+      setSelectedPostIndex(nextIndex);
+    }
+  }, [selectedPostIndex, posts]);
 
   // 재시도 핸들러
   const handleRetry = useCallback(() => {
@@ -338,8 +445,12 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
               />
             </svg>
           </div>
-          <p className="text-gray-900 font-medium mb-2">게시물을 불러올 수 없습니다</p>
-          <p className="text-gray-500 mb-4 text-sm">잠시 후 다시 시도해주세요</p>
+          <p className="text-gray-900 font-medium mb-2">
+            게시물을 불러올 수 없습니다
+          </p>
+          <p className="text-gray-500 mb-4 text-sm">
+            잠시 후 다시 시도해주세요
+          </p>
           <p className="text-sm text-gray-400 mb-6 max-w-sm">{error}</p>
           <button
             onClick={handleRetry}
@@ -376,7 +487,9 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
             게시물이 없습니다
           </h3>
           <p className="text-gray-500">
-            {userId ? "이 사용자의 게시물이 아직 없습니다" : "첫 번째 게시물을 작성해보세요"}
+            {userId
+              ? "이 사용자의 게시물이 아직 없습니다"
+              : "첫 번째 게시물을 작성해보세요"}
           </p>
         </div>
       </div>
@@ -422,6 +535,19 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
           </p>
         </div>
       )}
+
+      {/* 게시물 상세 모달 */}
+      <PostModal
+        postId={selectedPostId || ""}
+        isOpen={selectedPostId !== null}
+        onClose={handleCloseModal}
+        onPrevious={handlePreviousPost}
+        onNext={handleNextPost}
+        hasPrevious={selectedPostIndex > 0}
+        hasNext={selectedPostIndex < posts.length - 1}
+        onCommentChange={handleCommentChange}
+        onCommentDelete={handleCommentDeleteSync}
+      />
     </div>
   );
 }
