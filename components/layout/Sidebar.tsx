@@ -53,7 +53,7 @@ export function Sidebar() {
       label: "프로필",
       href: user ? `/profile/${user.id}` : "/sign-in",
       active: pathname.startsWith("/profile"),
-      disabled: true, // 1차 MVP 제외
+      disabled: false, // 프로필 기능 구현 완료
     },
   ] as const;
 

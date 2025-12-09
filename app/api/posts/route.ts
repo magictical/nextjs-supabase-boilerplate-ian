@@ -179,6 +179,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50); // 최대 50개
     const offset = parseInt(searchParams.get("offset") || "0");
     const userId = searchParams.get("userId"); // 특정 사용자의 게시물만 조회 (프로필용)
+    console.log("API /api/posts GET - userId:", userId, "limit:", limit, "offset:", offset);
 
     // Supabase 클라이언트 생성
     const supabase = createClerkSupabaseClient();
@@ -191,10 +192,12 @@ export async function GET(request: NextRequest) {
       .select("post_id", { count: "exact", head: true });
 
     if (userId) {
+      console.log("Filtering posts by user_id:", userId);
       countQuery = countQuery.eq("user_id", userId);
     }
 
     const { count: totalCount, error: countError } = await countQuery;
+    console.log("Total posts count:", totalCount);
 
     if (countError) {
       console.error("Count query error:", countError);
@@ -227,6 +230,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: postsData, error: postsError } = await postsQuery;
+    console.log("Posts fetched:", postsData?.length || 0, "posts");
 
     if (postsError) {
       console.error("Posts query error:", postsError);

@@ -214,6 +214,21 @@ export interface CommentFormData {
   content: string;
 }
 
+/** 프로필 페이지 응답 타입 */
+export interface ProfileResponse {
+  user: UserStats;
+  isFollowing: boolean;
+  isOwnProfile: boolean;
+}
+
+/** PostGrid용 게시물 타입 (썸네일용) */
+export interface PostThumbnail {
+  post_id: UUID;
+  image_url: string;
+  likes_count: number;
+  comments_count: number;
+}
+
 /** 프로필 편집 폼 데이터 */
 export interface ProfileFormData {
   name: string;

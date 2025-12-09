@@ -56,7 +56,7 @@ export function BottomNav() {
       label: isSignedIn ? "프로필" : "로그인",
       href: isSignedIn && user ? `/profile/${user.id}` : "/sign-in",
       active: pathname.startsWith("/profile") || pathname === "/sign-in",
-      disabled: isSignedIn, // 로그인한 경우에만 disabled (프로필 기능 미구현)
+      disabled: false, // 프로필 기능 구현 완료
     },
   ] as const;
 
