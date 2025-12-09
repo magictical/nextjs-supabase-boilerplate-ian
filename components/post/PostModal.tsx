@@ -146,23 +146,22 @@ export function PostModal({
         setComments((prev) => [newComment, ...prev]);
 
         // 게시물 댓글 수 증가
-        setPost((prev) =>
-          prev
-            ? {
-                ...prev,
-                comments_count: prev.comments_count + 1,
-                recentComments: [newComment, ...prev.recentComments].slice(
-                  0,
-                  2,
-                ),
-              }
-            : null,
-        );
+        setPost((prev) => {
+          if (!prev) return null;
 
-        // PostFeed 상태 동기화
-        if (onCommentChange && post) {
-          onCommentChange(post.post_id, prev.comments_count + 1, newComment);
-        }
+          const newCommentsCount = prev.comments_count + 1;
+
+          // PostFeed 상태 동기화
+          if (onCommentChange) {
+            onCommentChange(prev.post_id, newCommentsCount, newComment);
+          }
+
+          return {
+            ...prev,
+            comments_count: newCommentsCount,
+            recentComments: [newComment, ...prev.recentComments].slice(0, 2),
+          };
+        });
       } catch (error) {
         console.error("댓글 작성 오류:", error);
         throw error; // CommentForm에서 에러 처리
@@ -192,23 +191,24 @@ export function PostModal({
         setComments((prev) => prev.filter((c) => c.id !== commentId));
 
         // 게시물 댓글 수 감소
-        const newCommentsCount = Math.max(0, prev.comments_count - 1);
-        setPost((prev) =>
-          prev
-            ? {
-                ...prev,
-                comments_count: newCommentsCount,
-                recentComments: prev.recentComments.filter(
-                  (c) => c.id !== commentId,
-                ),
-              }
-            : null,
-        );
+        setPost((prev) => {
+          if (!prev) return null;
 
-        // PostFeed 상태 동기화
-        if (onCommentDelete && post) {
-          onCommentDelete(post.post_id, commentId, newCommentsCount);
-        }
+          const newCommentsCount = Math.max(0, prev.comments_count - 1);
+
+          // PostFeed 상태 동기화
+          if (onCommentDelete) {
+            onCommentDelete(prev.post_id, commentId, newCommentsCount);
+          }
+
+          return {
+            ...prev,
+            comments_count: newCommentsCount,
+            recentComments: prev.recentComments.filter(
+              (c) => c.id !== commentId,
+            ),
+          };
+        });
       } catch (error) {
         console.error("댓글 삭제 오류:", error);
         throw error;

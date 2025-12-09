@@ -15,12 +15,11 @@ import { createClerkSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
-    console.log(`API /api/posts/${params.postId} GET called`);
-
-    const { postId } = params;
+    const { postId } = await params;
+    console.log(`API /api/posts/${postId} GET called`);
 
     // 유효성 검증
     if (!postId) {
@@ -113,6 +112,11 @@ export async function GET(
     }
 
     // 4. 응답 데이터 포맷팅
+    // users는 !inner join으로 단일 객체이지만 타입 추론을 위해 타입 단언 사용
+    const users = Array.isArray(postData.users)
+      ? postData.users[0]
+      : postData.users;
+
     const post: any = {
       post_id: postData.post_id,
       user_id: postData.user_id,
@@ -121,22 +125,29 @@ export async function GET(
       created_at: postData.created_at,
       likes_count: postData.likes_count,
       comments_count: postData.comments_count,
-      name: postData.users.name,
-      clerk_id: postData.users.clerk_id,
+      name: users.name,
+      clerk_id: users.clerk_id,
       isLiked,
       recentComments: commentsData.slice(0, 2), // 호환성을 위해 포함 (모달에서는 전체 사용)
     };
 
-    const comments: any[] = commentsData.map(comment => ({
-      id: comment.id,
-      post_id: comment.post_id,
-      user_id: comment.user_id,
-      content: comment.content,
-      created_at: comment.created_at,
-      updated_at: comment.updated_at,
-      name: comment.users.name,
-      clerk_id: comment.users.clerk_id,
-    }));
+    const comments: any[] = commentsData.map(comment => {
+      // users는 !inner join으로 단일 객체이지만 타입 추론을 위해 타입 단언 사용
+      const commentUsers = Array.isArray(comment.users)
+        ? comment.users[0]
+        : comment.users;
+
+      return {
+        id: comment.id,
+        post_id: comment.post_id,
+        user_id: comment.user_id,
+        content: comment.content,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        name: commentUsers.name,
+        clerk_id: commentUsers.clerk_id,
+      };
+    });
 
     return NextResponse.json({
       post,
@@ -162,12 +173,11 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { postId: string } }
+  { params }: { params: Promise<{ postId: string }> }
 ) {
   try {
-    console.log(`API /api/posts/${params.postId} DELETE called`);
-
-    const { postId } = params;
+    const { postId } = await params;
+    console.log(`API /api/posts/${postId} DELETE called`);
 
     // 유효성 검증
     if (!postId) {

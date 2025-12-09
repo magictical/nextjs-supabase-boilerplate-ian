@@ -134,7 +134,7 @@ export interface UpdateCommentData {
 /** 팔로우 관계 기본 정보 */
 export interface Follow {
   id: UUID;
-  follower_id: UUID;  // 팔로우하는 사람
+  follower_id: UUID; // 팔로우하는 사람
   following_id: UUID; // 팔로우받는 사람
   created_at: Timestamp;
 }
@@ -323,7 +323,7 @@ export interface UploadResult {
 // ============================================
 
 /** 실시간 이벤트 타입 */
-export type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE';
+export type RealtimeEvent = "INSERT" | "UPDATE" | "DELETE";
 
 /** 실시간 페이로드 */
 export interface RealtimePayload<T> {
@@ -344,57 +344,55 @@ export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 export type RequiredBy<T, K extends keyof T> = T & Required<Pick<T, K>>;
 
 /** ID를 제외한 타입 (생성 시 사용) */
-export type WithoutId<T extends { id: any }> = Omit<T, 'id'>;
+export type WithoutId<T extends { id: any }> = Omit<T, "id">;
 
 /** 타임스탬프를 제외한 타입 */
-export type WithoutTimestamps<T extends { created_at?: any; updated_at?: any }> = Omit<
-  T,
-  'created_at' | 'updated_at'
->;
+export type WithoutTimestamps<
+  T extends { created_at?: any; updated_at?: any },
+> = Omit<T, "created_at" | "updated_at">;
 
 // ============================================
 // Export 정리
 // ============================================
 
-export type {
-  Timestamp,
-  UUID,
-  ClerkUserId,
-  User,
-  CreateUserData,
-  UpdateUserData,
-  UserStats,
-  Post,
-  CreatePostData,
-  UpdatePostData,
-  PostStats,
-  Like,
-  CreateLikeData,
-  Comment,
-  CreateCommentData,
-  UpdateCommentData,
-  Follow,
-  CreateFollowData,
-  PaginationInfo,
-  ApiResponse,
-  ListResponse,
-  PostCardProps,
-  CommentListProps,
-  FollowButtonProps,
-  PostFormData,
-  CommentFormData,
-  ProfileFormData,
-  ApiError,
-  ValidationError,
-  UploadFile,
-  UploadResult,
-  RealtimeEvent,
-  RealtimePayload,
-  PartialBy,
-  RequiredBy,
-  WithoutId,
-  WithoutTimestamps,
-  PostWithUser,
-  CommentWithUser,
-  PostsResponse,
-};
+// export type {
+//   UUID,
+//   ClerkUserId,
+//   User,
+//   CreateUserData,
+//   UpdateUserData,
+//   UserStats,
+//   Post,
+//   CreatePostData,
+//   UpdatePostData,
+//   PostStats,
+//   Like,
+//   CreateLikeData,
+//   Comment,
+//   CreateCommentData,
+//   UpdateCommentData,
+//   Follow,
+//   CreateFollowData,
+//   PaginationInfo,
+//   ApiResponse,
+//   ListResponse,
+//   PostCardProps,
+//   CommentListProps,
+//   FollowButtonProps,
+//   PostFormData,
+//   CommentFormData,
+//   ProfileFormData,
+//   ApiError,
+//   ValidationError,
+//   UploadFile,
+//   UploadResult,
+//   RealtimeEvent,
+//   RealtimePayload,
+//   PartialBy,
+//   RequiredBy,
+//   WithoutId,
+//   WithoutTimestamps,
+//   PostWithUser,
+//   CommentWithUser,
+//   PostsResponse,
+// };

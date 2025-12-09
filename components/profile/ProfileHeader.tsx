@@ -64,7 +64,7 @@ export function ProfileHeader({
 
   // 통계 클릭 핸들러 (팔로워/팔로잉 목록은 1차 MVP 제외)
   const handleStatClick = useCallback(
-    (type: "followers" | "following") => {
+    (type: "posts" | "followers" | "following") => {
       if (type === "posts") {
         // 게시물로 스크롤 (추후 구현)
         return;

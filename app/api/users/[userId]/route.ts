@@ -13,12 +13,11 @@ import { createClerkSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    console.log(`API /api/users/${params.userId} called`);
-
-    const { userId: requestedUserId } = params;
+    const { userId: requestedUserId } = await params;
+    console.log(`API /api/users/${requestedUserId} called`);
 
     // 유효성 검증
     if (!requestedUserId) {

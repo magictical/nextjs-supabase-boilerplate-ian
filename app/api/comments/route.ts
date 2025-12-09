@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 응답 포맷 맞추기
+    // users는 !inner join으로 단일 객체이지만 타입 추론을 위해 타입 단언 사용
+    const users = Array.isArray(commentData.users)
+      ? commentData.users[0]
+      : commentData.users;
+
     const response = {
       id: commentData.id,
       post_id: commentData.post_id,
@@ -99,8 +104,8 @@ export async function POST(request: NextRequest) {
       content: commentData.content,
       created_at: commentData.created_at,
       updated_at: commentData.updated_at,
-      name: commentData.users.name,
-      clerk_id: commentData.users.clerk_id,
+      name: users.name,
+      clerk_id: users.clerk_id,
     };
 
     return NextResponse.json(response);

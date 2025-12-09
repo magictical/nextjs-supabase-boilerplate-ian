@@ -105,8 +105,7 @@ export async function POST(request: NextRequest) {
       // 상세한 에러 정보를 로그에 기록
       console.error("Upload error details:", {
         message: uploadError.message,
-        statusCode: uploadError.statusCode,
-        error: uploadError.error,
+        error: uploadError,
       });
       return createServerErrorResponse(
         "이미지 업로드에 실패했습니다.",
@@ -321,19 +320,43 @@ export async function GET(request: NextRequest) {
     }
 
     // 5. 응답 데이터 구성
-    const posts: PostsResponse["data"] = postsData.map((post) => ({
-      post_id: post.post_id,
-      user_id: post.user_id,
-      image_url: post.image_url,
-      caption: post.caption,
-      created_at: post.created_at,
-      likes_count: post.likes_count,
-      comments_count: post.comments_count,
-      name: post.users.name,
-      clerk_id: post.users.clerk_id,
-      isLiked: likesMap.get(post.post_id) || false,
-      recentComments: commentsMap.get(post.post_id) || [],
-    }));
+    const posts: PostsResponse["data"] = postsData.map((post) => {
+      // users는 !inner join으로 단일 객체이지만 타입 추론을 위해 타입 단언 사용
+      const users = Array.isArray(post.users) ? post.users[0] : post.users;
+
+      // recentComments의 users도 처리
+      const recentComments = (commentsMap.get(post.post_id) || []).map(
+        (comment) => {
+          const commentUsers = Array.isArray(comment.users)
+            ? comment.users[0]
+            : comment.users;
+          return {
+            id: comment.id,
+            post_id: comment.post_id,
+            user_id: comment.user_id,
+            content: comment.content,
+            created_at: comment.created_at,
+            updated_at: comment.updated_at,
+            name: commentUsers.name,
+            clerk_id: commentUsers.clerk_id,
+          };
+        },
+      );
+
+      return {
+        post_id: post.post_id,
+        user_id: post.user_id,
+        image_url: post.image_url,
+        caption: post.caption,
+        created_at: post.created_at,
+        likes_count: post.likes_count,
+        comments_count: post.comments_count,
+        name: users.name,
+        clerk_id: users.clerk_id,
+        isLiked: likesMap.get(post.post_id) || false,
+        recentComments,
+      };
+    });
 
     // 6. 페이지네이션 정보
     const hasMore = total > offset + limit;

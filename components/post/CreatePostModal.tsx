@@ -182,7 +182,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        {React.cloneElement(children as React.ReactElement, {
+        {React.cloneElement(children as React.ReactElement<any>, {
           onClick: handleTriggerClick,
         })}
       </DialogTrigger>

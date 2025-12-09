@@ -2,13 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, memo, useMemo } from "react";
-import {
-  Heart,
-  MessageCircle,
-  Send,
-  Bookmark,
-} from "lucide-react";
+import { useState, memo, useMemo, useCallback } from "react";
+import { Heart, MessageCircle, Send, Bookmark } from "lucide-react";
 import { PostWithUser } from "@/lib/types";
 import { LikeButton } from "./LikeButton";
 import { CommentList } from "@/components/comment/CommentList";
@@ -62,30 +57,41 @@ function PostCardComponent({
   const [lastTap, setLastTap] = useState(0);
   const handleImageClick = useCallback(() => {
     const currentTime = new Date().getTime();
-    const tapGap = currentTime - lastTap;
 
-    if (tapGap < 300 && tapGap > 0) {
-      // 더블 탭 감지
-      setIsDoubleTapped(true);
-      setTimeout(() => setIsDoubleTapped(false), 1000);
+    setLastTap((prevLastTap) => {
+      const tapGap = currentTime - prevLastTap;
 
-      // 좋아요 토글 (로컬 상태 업데이트)
-      const newIsLiked = !isLiked;
-      const newLikesCount = newIsLiked ? likesCount + 1 : likesCount - 1;
+      if (tapGap < 300 && tapGap > 0) {
+        // 더블 탭 감지
+        setIsDoubleTapped(true);
+        setTimeout(() => setIsDoubleTapped(false), 1000);
 
-      setIsLiked(newIsLiked);
-      setLikesCount(newLikesCount);
+        // 좋아요 토글 (로컬 상태 업데이트)
+        setIsLiked((prevIsLiked) => {
+          const newIsLiked = !prevIsLiked;
 
-      // 부모 컴포넌트에도 알림 (선택사항)
-      if (newIsLiked && onLike) {
-        onLike(post.post_id);
-      } else if (!newIsLiked && onUnlike) {
-        onUnlike(post.post_id);
+          setLikesCount((prevLikesCount) => {
+            const newLikesCount = newIsLiked
+              ? prevLikesCount + 1
+              : prevLikesCount - 1;
+
+            // 부모 컴포넌트에도 알림 (선택사항)
+            if (newIsLiked && onLike) {
+              onLike(post.post_id);
+            } else if (!newIsLiked && onUnlike) {
+              onUnlike(post.post_id);
+            }
+
+            return newLikesCount;
+          });
+
+          return newIsLiked;
+        });
       }
-    }
 
-    setLastTap(currentTime);
-  }, [lastTap, isLiked, likesCount, onLike, onUnlike, post.post_id]);
+      return currentTime;
+    });
+  }, [onLike, onUnlike, post.post_id]);
 
   // LikeButton의 좋아요 변경 핸들러 (useCallback으로 메모이제이션)
   const handleLikeChange = useCallback(
