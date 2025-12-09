@@ -14,6 +14,7 @@ import {
 import { LikeButton } from "./LikeButton";
 import { CommentList } from "@/components/comment/CommentList";
 import { CommentForm } from "@/components/comment/CommentForm";
+import { PostMenu } from "./PostMenu";
 import { PostWithUser, CommentWithUser } from "@/lib/types";
 
 /**
@@ -36,6 +37,8 @@ interface PostModalProps {
   hasNext?: boolean;
   onCommentChange?: (postId: string, commentsCount: number, newComment?: any) => void;
   onCommentDelete?: (postId: string, commentId: string, commentsCount: number) => void;
+  currentUserId?: string;
+  onDelete?: (postId: string) => void;
 }
 
 export function PostModal({
@@ -48,6 +51,8 @@ export function PostModal({
   hasNext = false,
   onCommentChange,
   onCommentDelete,
+  currentUserId,
+  onDelete,
 }: PostModalProps) {
   const { user: currentUser } = useUser();
   const [post, setPost] = useState<PostWithUser | null>(null);
@@ -303,9 +308,11 @@ export function PostModal({
                   <p className="font-semibold text-sm text-black">{post.name}</p>
                 </div>
               </Link>
-              <button className="p-1 hover:bg-gray-100 rounded-full">
-                <MoreHorizontal className="w-5 h-5 text-gray-500" />
-              </button>
+              <PostMenu
+                postId={post.post_id}
+                isOwner={currentUserId === post.user_id}
+                onDelete={onDelete}
+              />
             </div>
 
             {/* 모바일용 이미지 (상단에 표시) */}

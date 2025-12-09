@@ -81,6 +81,9 @@ export function ProfilePageClient({
           userId={user.user_id} // Supabase user_id (UUID)
           onPostClick={handlePostClick}
         />
+
+        {/* 게시물 피드 (프로필 페이지에서는 숨김 처리) */}
+        {/* TODO: 프로필 페이지에서 게시물 피드를 별도로 표시할지 결정 */}
       </div>
 
       {/* 게시물 상세 모달 */}

@@ -19,9 +19,10 @@ import { PostWithUser, PostsResponse } from "@/lib/types";
 interface PostFeedProps {
   initialPosts?: PostWithUser[];
   userId?: string; // 프로필 페이지용 필터
+  currentUserId?: string; // 현재 로그인한 사용자 ID (삭제 기능용)
 }
 
-export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
+export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedProps) {
   const [posts, setPosts] = useState<PostWithUser[]>(initialPosts);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -220,6 +221,20 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
       );
     }
   }, []);
+
+  // 게시물 삭제 핸들러
+  const handleDelete = useCallback(async (postId: string) => {
+    // 게시물 목록에서 즉시 제거 (낙관적 업데이트)
+    setPosts((prevPosts) => prevPosts.filter((post) => post.post_id !== postId));
+
+    // 선택된 게시물이 삭제된 경우 모달 닫기
+    if (selectedPostId === postId) {
+      setSelectedPostId(null);
+      setSelectedPostIndex(-1);
+    }
+
+    console.log("Deleted post:", postId);
+  }, [selectedPostId]);
 
   // 댓글 작성 핸들러
   const handleComment = useCallback(async (postId: string, content: string) => {
@@ -503,11 +518,13 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
         <PostCard
           key={post.post_id}
           post={post}
+          currentUserId={currentUserId}
           onLike={handleLike}
           onUnlike={handleUnlike}
           onComment={handleComment}
           onCommentDelete={handleCommentDelete}
           onShowDetail={handleShowDetail}
+          onDelete={handleDelete}
         />
       ))}
 
@@ -547,6 +564,8 @@ export function PostFeed({ initialPosts = [], userId }: PostFeedProps) {
         hasNext={selectedPostIndex < posts.length - 1}
         onCommentChange={handleCommentChange}
         onCommentDelete={handleCommentDeleteSync}
+        currentUserId={currentUserId}
+        onDelete={handleDelete}
       />
     </div>
   );

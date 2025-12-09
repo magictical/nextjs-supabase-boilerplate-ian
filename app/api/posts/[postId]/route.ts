@@ -151,3 +151,140 @@ export async function GET(
     );
   }
 }
+
+/**
+ * 게시물 삭제 API
+ *
+ * DELETE /api/posts/[postId]
+ * - 게시물 삭제 (본인만 가능)
+ * - Supabase Storage에서 이미지 파일 삭제
+ * - posts 테이블에서 레코드 삭제 (CASCADE로 likes, comments 자동 삭제)
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { postId: string } }
+) {
+  try {
+    console.log(`API /api/posts/${params.postId} DELETE called`);
+
+    const { postId } = params;
+
+    // 유효성 검증
+    if (!postId) {
+      return NextResponse.json(
+        { error: "postId가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    // Clerk 인증 확인
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) {
+      return NextResponse.json(
+        { error: "인증이 필요합니다." },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createClerkSupabaseClient();
+
+    // 1. 현재 사용자 정보 확인
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("clerk_id", clerkUserId)
+      .single();
+
+    if (userError || !userData) {
+      console.error("User lookup error:", userError);
+      return NextResponse.json(
+        { error: "사용자를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    // 2. 게시물 존재 확인 및 소유자 검증
+    const { data: postData, error: postError } = await supabase
+      .from("posts")
+      .select("id, user_id, image_url")
+      .eq("id", postId)
+      .single();
+
+    if (postError || !postData) {
+      console.error("Post lookup error:", postError);
+      return NextResponse.json(
+        { error: "게시물을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    // 3. 본인 게시물인지 확인
+    if (postData.user_id !== userData.id) {
+      return NextResponse.json(
+        { error: "본인의 게시물만 삭제할 수 있습니다." },
+        { status: 403 }
+      );
+    }
+
+    // 4. 이미지 파일 경로 추출
+    // image_url 형식: https://[project].supabase.co/storage/v1/object/public/uploads/[userId]/posts/[fileName]
+    let filePath = null;
+    try {
+      const url = new URL(postData.image_url);
+      const pathParts = url.pathname.split('/');
+      // /storage/v1/object/public/uploads/[userId]/posts/[fileName]
+      // uploads 이후 부분 추출
+      const uploadsIndex = pathParts.indexOf('uploads');
+      if (uploadsIndex !== -1 && pathParts.length > uploadsIndex + 1) {
+        filePath = pathParts.slice(uploadsIndex + 1).join('/');
+      }
+    } catch (error) {
+      console.warn("Failed to parse image URL, skipping storage deletion:", error);
+    }
+
+    // 5. Supabase Storage에서 이미지 파일 삭제 (실패해도 DB 삭제는 계속 진행)
+    if (filePath) {
+      try {
+        const { error: storageError } = await supabase.storage
+          .from("uploads")
+          .remove([filePath]);
+
+        if (storageError) {
+          console.warn("Storage deletion failed, but continuing with DB deletion:", storageError);
+        } else {
+          console.log("Storage file deleted successfully:", filePath);
+        }
+      } catch (storageError) {
+        console.warn("Storage deletion exception, but continuing with DB deletion:", storageError);
+      }
+    }
+
+    // 6. posts 테이블에서 게시물 삭제 (CASCADE로 likes, comments 자동 삭제)
+    const { error: deleteError } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", postId);
+
+    if (deleteError) {
+      console.error("Post deletion error:", deleteError);
+      return NextResponse.json(
+        { error: "게시물 삭제에 실패했습니다." },
+        { status: 500 }
+      );
+    }
+
+    console.log("Post deleted successfully:", postId);
+
+    return NextResponse.json({
+      success: true,
+      message: "게시물이 성공적으로 삭제되었습니다."
+    });
+
+  } catch (error) {
+    console.error("Post DELETE API error:", error);
+    return NextResponse.json(
+      { error: "서버 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}

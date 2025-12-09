@@ -8,6 +8,7 @@ import { PostWithUser } from "@/lib/types";
 import { LikeButton } from "./LikeButton";
 import { CommentList } from "@/components/comment/CommentList";
 import { CommentForm } from "@/components/comment/CommentForm";
+import { PostMenu } from "./PostMenu";
 
 /**
  * Instagram 클론 PostCard 컴포넌트
@@ -29,6 +30,7 @@ interface PostCardProps {
   onComment?: (postId: string, content: string) => void;
   onCommentDelete?: (commentId: string) => void;
   onShowDetail?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
 }
 
 export function PostCard({
@@ -39,6 +41,7 @@ export function PostCard({
   onComment,
   onCommentDelete,
   onShowDetail,
+  onDelete,
 }: PostCardProps) {
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [isDoubleTapped, setIsDoubleTapped] = useState(false);
@@ -137,9 +140,11 @@ export function PostCard({
           <time className="text-xs text-gray-500">
             {formatRelativeTime(post.created_at)}
           </time>
-          <button className="text-gray-600 hover:text-gray-800">
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
+          <PostMenu
+            postId={post.post_id}
+            isOwner={currentUserId === post.user_id}
+            onDelete={onDelete}
+          />
         </div>
       </header>
 
