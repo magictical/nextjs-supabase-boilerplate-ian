@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Image as ImageIcon, X } from "lucide-react";
 import Image from "next/image";
-import { PostFormData } from "@/lib/types";
+import { useToast } from "@/components/ui/toast";
+import { handleFetchError, logError } from "@/lib/utils/error-handler";
 
 /**
  * Instagram 클론 게시물 작성 모달
@@ -31,6 +32,7 @@ interface CreatePostModalProps {
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const { user, isSignedIn } = useUser();
+  const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 상태 관리
@@ -48,13 +50,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
     // 파일 검증
     if (!file.type.startsWith("image/")) {
-      alert("이미지 파일만 선택할 수 있습니다.");
+      showToast("이미지 파일만 선택할 수 있습니다.", "error");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       // 5MB
-      alert("파일 크기는 5MB 이하여야 합니다.");
+      showToast("파일 크기는 5MB 이하여야 합니다.", "error");
       return;
     }
 
@@ -80,9 +82,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
     // 인증 상태 확인
     if (!isSignedIn || !user) {
-      alert("로그인이 필요합니다.");
-      // 로그인 페이지로 리다이렉트 (선택사항)
-      // window.location.href = "/sign-in";
+      showToast("로그인이 필요합니다.", "error");
       return;
     }
 
@@ -98,23 +98,31 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       formData.append("caption", caption);
       formData.append("userId", user.id);
 
-      const response = await fetch("/api/posts", {
-        method: "POST",
-        body: formData,
-      });
+      let response: Response | null = null;
+      try {
+        response = await fetch("/api/posts", {
+          method: "POST",
+          body: formData,
+        });
+      } catch (fetchErr) {
+        const errorInfo = await handleFetchError(null, fetchErr);
+        logError(errorInfo, "CreatePostModal.handleUpload");
+        throw new Error(errorInfo.message);
+      }
 
       setUploadProgress(80);
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드에 실패했습니다.");
+        const errorInfo = await handleFetchError(response, null);
+        logError(errorInfo, "CreatePostModal.handleUpload");
+        throw new Error(errorInfo.message);
       }
 
-      const result = await response.json();
+      await response.json();
       setUploadProgress(100);
 
       // 성공 처리
-      alert("게시물이 성공적으로 업로드되었습니다!");
+      showToast("게시물이 성공적으로 업로드되었습니다!", "success");
 
       // 게시물 생성 후 페이지 새로고침
       window.location.reload();
@@ -122,8 +130,17 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       // 모달 초기화
       handleClose();
     } catch (error) {
-      console.error("Upload error:", error);
-      alert(error instanceof Error ? error.message : "업로드에 실패했습니다.");
+      const errorMessage =
+        error instanceof Error ? error.message : "업로드에 실패했습니다.";
+      logError(
+        {
+          type: "UNKNOWN_ERROR",
+          message: errorMessage,
+          originalError: error,
+        },
+        "CreatePostModal.handleUpload",
+      );
+      showToast(errorMessage, "error");
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -134,9 +151,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handleTriggerClick = (e: React.MouseEvent) => {
     if (!isSignedIn || !user) {
       e.preventDefault();
-      alert("게시물을 작성하려면 로그인이 필요합니다.");
-      // 로그인 페이지로 리다이렉트 (선택사항)
-      // window.location.href = "/sign-in";
+      showToast("게시물을 작성하려면 로그인이 필요합니다.", "error");
       return;
     }
   };
@@ -185,7 +200,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <p className="text-gray-600 mb-4">사진과 동영상을 선택하세요</p>
               <Button
                 onClick={() => fileInputRef.current?.click()}
-                className="bg-blue-500 hover:bg-blue-600"
+                aria-label="이미지 파일 선택"
+                className="bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 컴퓨터에서 선택
               </Button>
@@ -212,7 +228,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     />
                     <button
                       onClick={handleRemoveFile}
-                      className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70 transition-all"
+                      aria-label="이미지 제거"
+                      className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70 transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -229,8 +246,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   maxLength={2200}
                   rows={3}
                   className="resize-none"
+                  aria-label="게시물 캡션 입력"
+                  aria-describedby="caption-counter"
                 />
-                <p className="text-xs text-gray-500 mt-1 text-right">
+                <p
+                  id="caption-counter"
+                  className="text-xs text-gray-500 mt-1 text-right"
+                  aria-live="polite"
+                >
                   {caption.length}/2,200
                 </p>
               </div>

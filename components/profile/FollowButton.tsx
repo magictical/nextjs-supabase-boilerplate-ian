@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { FollowButtonProps } from "@/lib/types";
+import { useToast } from "@/components/ui/toast";
+import { handleFetchError, logError } from "@/lib/utils/error-handler";
 
 /**
  * 팔로우 버튼 컴포넌트
@@ -18,8 +20,9 @@ export function FollowButton({
   currentUserId,
   isFollowing,
   onFollow,
-  onUnfollow
+  onUnfollow,
 }: FollowButtonProps) {
+  const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [optimisticFollowing, setOptimisticFollowing] = useState(isFollowing);
   const [isHovered, setIsHovered] = useState(false);
@@ -42,34 +45,50 @@ export function FollowButton({
     try {
       if (willBeFollowing) {
         // 팔로우 추가
-        const response = await fetch('/api/follows', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ following_id: targetUserId }),
-        });
+        let response: Response | null = null;
+        try {
+          response = await fetch("/api/follows", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ following_id: targetUserId }),
+          });
+        } catch (fetchErr) {
+          const errorInfo = await handleFetchError(null, fetchErr);
+          logError(errorInfo, "FollowButton.handleFollowToggle");
+          throw new Error(errorInfo.message);
+        }
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '팔로우 추가에 실패했습니다.');
+          const errorInfo = await handleFetchError(response, null);
+          logError(errorInfo, "FollowButton.handleFollowToggle");
+          throw new Error(errorInfo.message);
         }
 
         // 성공 콜백 호출
         onFollow?.(targetUserId);
       } else {
         // 팔로우 제거
-        const response = await fetch('/api/follows', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ following_id: targetUserId }),
-        });
+        let response: Response | null = null;
+        try {
+          response = await fetch("/api/follows", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ following_id: targetUserId }),
+          });
+        } catch (fetchErr) {
+          const errorInfo = await handleFetchError(null, fetchErr);
+          logError(errorInfo, "FollowButton.handleFollowToggle");
+          throw new Error(errorInfo.message);
+        }
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '팔로우 제거에 실패했습니다.');
+          const errorInfo = await handleFetchError(response, null);
+          logError(errorInfo, "FollowButton.handleFollowToggle");
+          throw new Error(errorInfo.message);
         }
 
         // 성공 콜백 호출
@@ -78,10 +97,19 @@ export function FollowButton({
     } catch (error) {
       // 에러 발생 시 낙관적 업데이트 롤백
       setOptimisticFollowing(wasFollowing);
-      console.error('Follow toggle error:', error);
-
-      // 사용자에게 에러 알림
-      alert(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "알 수 없는 오류가 발생했습니다.";
+      logError(
+        {
+          type: "UNKNOWN_ERROR",
+          message: errorMessage,
+          originalError: error,
+        },
+        "FollowButton.handleFollowToggle",
+      );
+      showToast(errorMessage, "error");
     } finally {
       setIsLoading(false);
     }
@@ -89,19 +117,28 @@ export function FollowButton({
 
   const displayFollowing = optimisticFollowing;
 
+  const buttonLabel = displayFollowing
+    ? isHovered
+      ? "언팔로우"
+      : "팔로잉"
+    : "팔로우";
+
   return (
     <button
       onClick={handleFollowToggle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       disabled={isLoading}
+      aria-label={buttonLabel}
       className={`px-6 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
         displayFollowing
           ? isHovered
-            ? 'bg-red-50 text-red-600 border border-red-300 hover:bg-red-100'
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          : 'bg-blue-500 text-white hover:bg-blue-600'
-      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            ? "bg-red-50 text-red-600 border border-red-300 hover:bg-red-100"
+            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          : "bg-blue-500 text-white hover:bg-blue-600"
+      } ${
+        isLoading ? "opacity-50 cursor-not-allowed" : ""
+      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
     >
       {isLoading ? (
         // 로딩 상태
@@ -111,10 +148,14 @@ export function FollowButton({
         </div>
       ) : displayFollowing ? (
         // 팔로우 중 상태
-        isHovered ? '언팔로우' : '팔로잉'
+        isHovered ? (
+          "언팔로우"
+        ) : (
+          "팔로잉"
+        )
       ) : (
         // 미팔로우 상태
-        '팔로우'
+        "팔로우"
       )}
     </button>
   );

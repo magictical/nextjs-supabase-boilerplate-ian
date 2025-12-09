@@ -4,7 +4,16 @@ import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  MessageCircle,
+  Send,
+  Bookmark,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,8 +44,16 @@ interface PostModalProps {
   onNext?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
-  onCommentChange?: (postId: string, commentsCount: number, newComment?: any) => void;
-  onCommentDelete?: (postId: string, commentId: string, commentsCount: number) => void;
+  onCommentChange?: (
+    postId: string,
+    commentsCount: number,
+    newComment?: any,
+  ) => void;
+  onCommentDelete?: (
+    postId: string,
+    commentId: string,
+    commentsCount: number,
+  ) => void;
   currentUserId?: string;
   onDelete?: (postId: string) => void;
 }
@@ -60,6 +77,7 @@ export function PostModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFullCaption, setShowFullCaption] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // 게시물 데이터 로딩
   const loadPostDetail = useCallback(async () => {
@@ -77,9 +95,12 @@ export function PostModal({
       const data = await response.json();
       setPost(data.post);
       setComments(data.comments);
+      setImageError(false); // 새 게시물 로드 시 이미지 에러 초기화
     } catch (err) {
       console.error("Post detail load error:", err);
-      setError(err instanceof Error ? err.message : "게시물을 불러올 수 없습니다.");
+      setError(
+        err instanceof Error ? err.message : "게시물을 불러올 수 없습니다.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -103,90 +124,114 @@ export function PostModal({
   }, [isOpen]);
 
   // 댓글 작성 핸들러
-  const handleComment = useCallback(async (content: string) => {
-    if (!post) return;
+  const handleComment = useCallback(
+    async (content: string) => {
+      if (!post) return;
 
-    try {
-      const response = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post_id: post.post_id, content }),
-      });
+      try {
+        const response = await fetch("/api/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ post_id: post.post_id, content }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "댓글 작성에 실패했습니다.");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "댓글 작성에 실패했습니다.");
+        }
+
+        const newComment = await response.json();
+
+        // 댓글 목록에 새 댓글 추가
+        setComments((prev) => [newComment, ...prev]);
+
+        // 게시물 댓글 수 증가
+        setPost((prev) =>
+          prev
+            ? {
+                ...prev,
+                comments_count: prev.comments_count + 1,
+                recentComments: [newComment, ...prev.recentComments].slice(
+                  0,
+                  2,
+                ),
+              }
+            : null,
+        );
+
+        // PostFeed 상태 동기화
+        if (onCommentChange && post) {
+          onCommentChange(post.post_id, prev.comments_count + 1, newComment);
+        }
+      } catch (error) {
+        console.error("댓글 작성 오류:", error);
+        throw error; // CommentForm에서 에러 처리
       }
-
-      const newComment = await response.json();
-
-      // 댓글 목록에 새 댓글 추가
-      setComments(prev => [newComment, ...prev]);
-
-      // 게시물 댓글 수 증가
-      setPost(prev => prev ? {
-        ...prev,
-        comments_count: prev.comments_count + 1,
-        recentComments: [newComment, ...prev.recentComments].slice(0, 2)
-      } : null);
-
-      // PostFeed 상태 동기화
-      if (onCommentChange && post) {
-        onCommentChange(post.post_id, prev.comments_count + 1, newComment);
-      }
-
-    } catch (error) {
-      console.error("댓글 작성 오류:", error);
-      throw error; // CommentForm에서 에러 처리
-    }
-  }, [post]);
+    },
+    [post],
+  );
 
   // 댓글 삭제 핸들러
-  const handleCommentDelete = useCallback(async (commentId: string) => {
-    if (!post) return;
+  const handleCommentDelete = useCallback(
+    async (commentId: string) => {
+      if (!post) return;
 
-    try {
-      const response = await fetch("/api/comments", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment_id: commentId }),
-      });
+      try {
+        const response = await fetch("/api/comments", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment_id: commentId }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "댓글 삭제에 실패했습니다.");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "댓글 삭제에 실패했습니다.");
+        }
+
+        // 댓글 목록에서 제거
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+
+        // 게시물 댓글 수 감소
+        const newCommentsCount = Math.max(0, prev.comments_count - 1);
+        setPost((prev) =>
+          prev
+            ? {
+                ...prev,
+                comments_count: newCommentsCount,
+                recentComments: prev.recentComments.filter(
+                  (c) => c.id !== commentId,
+                ),
+              }
+            : null,
+        );
+
+        // PostFeed 상태 동기화
+        if (onCommentDelete && post) {
+          onCommentDelete(post.post_id, commentId, newCommentsCount);
+        }
+      } catch (error) {
+        console.error("댓글 삭제 오류:", error);
+        throw error;
       }
-
-      // 댓글 목록에서 제거
-      setComments(prev => prev.filter(c => c.id !== commentId));
-
-      // 게시물 댓글 수 감소
-      const newCommentsCount = Math.max(0, prev.comments_count - 1);
-      setPost(prev => prev ? {
-        ...prev,
-        comments_count: newCommentsCount,
-        recentComments: prev.recentComments.filter(c => c.id !== commentId)
-      } : null);
-
-      // PostFeed 상태 동기화
-      if (onCommentDelete && post) {
-        onCommentDelete(post.post_id, commentId, newCommentsCount);
-      }
-
-    } catch (error) {
-      console.error("댓글 삭제 오류:", error);
-      throw error;
-    }
-  }, [post]);
+    },
+    [post],
+  );
 
   // 좋아요 변경 핸들러
-  const handleLikeChange = useCallback((newLikesCount: number, newIsLiked: boolean) => {
-    setPost(prev => prev ? {
-      ...prev,
-      likes_count: newLikesCount,
-      isLiked: newIsLiked
-    } : null);
-  }, []);
+  const handleLikeChange = useCallback(
+    (newLikesCount: number, newIsLiked: boolean) => {
+      setPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              likes_count: newLikesCount,
+              isLiked: newIsLiked,
+            }
+          : null,
+      );
+    },
+    [],
+  );
 
   // 상대 시간 표시 함수
   const formatRelativeTime = (timestamp: string) => {
@@ -225,11 +270,23 @@ export function PostModal({
         <DialogContent className="max-w-md p-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
-              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg
+                className="w-8 h-8 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">오류가 발생했습니다</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              오류가 발생했습니다
+            </h3>
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={onClose}
@@ -250,11 +307,18 @@ export function PostModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent
+        className="w-full max-w-4xl max-h-[90vh] p-0 overflow-hidden"
+        aria-labelledby="post-modal-title"
+      >
+        <DialogTitle id="post-modal-title" className="sr-only">
+          게시물 상세
+        </DialogTitle>
         {/* 닫기 버튼 */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-[60] w-8 h-8 bg-black bg-opacity-50 rounded-full flex items-center justify-center hover:bg-opacity-70 transition-colors"
+          aria-label="모달 닫기"
+          className="absolute top-4 right-4 z-[60] w-8 h-8 bg-black bg-opacity-50 rounded-full flex items-center justify-center hover:bg-opacity-70 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
         >
           <X className="w-4 h-4 text-white" />
         </button>
@@ -263,7 +327,8 @@ export function PostModal({
         {hasPrevious && (
           <button
             onClick={onPrevious}
-            className="absolute left-4 top-1/3 -translate-y-1/2 z-50 w-10 h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center hover:bg-opacity-70 transition-colors"
+            aria-label="이전 게시물"
+            className="absolute left-4 top-1/3 -translate-y-1/2 z-50 w-10 h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center hover:bg-opacity-70 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
           >
             <ChevronLeft className="w-6 h-6 text-white" />
           </button>
@@ -271,7 +336,8 @@ export function PostModal({
         {hasNext && (
           <button
             onClick={onNext}
-            className="absolute right-4 top-1/3 -translate-y-1/2 z-50 w-10 h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center hover:bg-opacity-70 transition-colors"
+            aria-label="다음 게시물"
+            className="absolute right-4 top-1/3 -translate-y-1/2 z-50 w-10 h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center hover:bg-opacity-70 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
           >
             <ChevronRight className="w-6 h-6 text-white" />
           </button>
@@ -280,13 +346,24 @@ export function PostModal({
         <div className="flex flex-col h-full max-h-[90vh]">
           {/* 이미지 영역 (항상 상단 전체) */}
           <div className="flex bg-black items-center justify-center min-h-[300px] max-h-[50vh]">
-            <Image
-              src={post.image_url}
-              alt={`게시물 이미지 - ${post.name}`}
-              width={500}
-              height={500}
-              className="max-w-full max-h-full object-contain"
-            />
+            {!imageError ? (
+              <Image
+                src={post.image_url}
+                alt={`게시물 이미지 - ${post.name}`}
+                width={500}
+                height={500}
+                className="max-w-full max-h-full object-contain"
+                priority={true}
+                sizes="(max-width: 768px) 100vw, 50vw"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                <span className="text-gray-400 text-sm">
+                  이미지를 불러올 수 없습니다
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 댓글 영역 (항상 하단 전체, 스크롤 가능) */}
@@ -305,7 +382,9 @@ export function PostModal({
                   </div>
                 </div>
                 <div>
-                  <p className="font-semibold text-sm text-black">{post.name}</p>
+                  <p className="font-semibold text-sm text-black">
+                    {post.name}
+                  </p>
                 </div>
               </Link>
               <PostMenu
@@ -317,13 +396,30 @@ export function PostModal({
 
             {/* 모바일용 이미지 (상단에 표시) */}
             <div className="md:hidden bg-black flex items-center justify-center min-h-[300px]">
-              <Image
-                src={post.image_url}
-                alt={`게시물 이미지 - ${post.name}`}
-                width={400}
-                height={400}
-                className="max-w-full max-h-full object-contain"
-              />
+              {!imageError ? (
+                <Image
+                  src={post.image_url}
+                  alt={`${post.name}의 게시물 이미지${
+                    post.caption
+                      ? `: ${post.caption.substring(0, 50)}${
+                          post.caption.length > 50 ? "..." : ""
+                        }`
+                      : ""
+                  }`}
+                  width={400}
+                  height={400}
+                  className="max-w-full max-h-full object-contain"
+                  priority={true}
+                  sizes="100vw"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                  <span className="text-gray-400 text-sm">
+                    이미지를 불러올 수 없습니다
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* 댓글 목록 영역 - 스크롤 가능 */}

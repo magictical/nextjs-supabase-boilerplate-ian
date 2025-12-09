@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SyncUserProvider } from "@/components/providers/sync-user-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 // Clerk 한국어 로컬라이제이션 커스터마이징
@@ -77,7 +78,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SaaS 템플릿",
+  title: "Nistagram",
   description: "Next.js + Clerk + Supabase 보일러플레이트",
 };
 
@@ -92,11 +93,12 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <SyncUserProvider>
-            <div className="min-h-screen bg-background">
+          <ToastProvider>
+            <SyncUserProvider>
+              <div className="min-h-screen bg-background">
               {/* Desktop & Tablet: Sidebar */}
               <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:z-50">
-                <div className="w-16 lg:w-60 h-screen">
+                <div className="w-[72px] lg:w-[244px] h-screen">
                   <Sidebar />
                 </div>
               </aside>
@@ -105,7 +107,7 @@ export default function RootLayout({
               <Header />
 
               {/* Main Content */}
-              <main className="md:ml-16 lg:ml-60 pt-16 md:pt-0">
+              <main className="md:ml-[72px] lg:ml-[244px] pt-16 md:pt-0">
                 <div className="max-w-[630px] mx-auto min-h-screen bg-background">
                   {children}
                 </div>
@@ -113,8 +115,9 @@ export default function RootLayout({
 
               {/* Mobile: Bottom Navigation */}
               <BottomNav />
-            </div>
-          </SyncUserProvider>
+              </div>
+            </SyncUserProvider>
+          </ToastProvider>
         </body>
       </html>
     </ClerkProvider>

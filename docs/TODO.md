@@ -169,16 +169,16 @@
 
 ## 11. 반응형 및 애니메이션
 
-- [ ] 반응형 브레이크포인트 적용
-  - [ ] Mobile (< 768px): BottomNav, Header 표시
-  - [ ] Tablet (768px ~ 1023px): Icon-only Sidebar
-  - [ ] Desktop (1024px+): Full Sidebar
-- [ ] 좋아요 애니메이션
-  - [ ] 클릭 시 scale(1.3) → scale(1) (0.15초)
-  - [ ] 더블탭 시 큰 하트 fade in/out (1초)
-- [ ] 로딩 상태
-  - [ ] Skeleton UI (PostCardSkeleton)
-  - [ ] Shimmer 효과
+- [x] 반응형 브레이크포인트 적용
+  - [x] Mobile (< 768px): BottomNav, Header 표시
+  - [x] Tablet (768px ~ 1023px): Icon-only Sidebar
+  - [x] Desktop (1024px+): Full Sidebar
+- [x] 좋아요 애니메이션
+  - [x] 클릭 시 scale(1.3) → scale(1) (0.15초)
+  - [x] 더블탭 시 큰 하트 fade in/out (1초)
+- [x] 로딩 상태
+  - [x] Skeleton UI (PostCardSkeleton)
+  - [x] Shimmer 효과
 
 ## 12. 에러 핸들링 및 최적화
 

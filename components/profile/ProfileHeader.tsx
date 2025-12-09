@@ -1,8 +1,11 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
+import { useCallback, useMemo } from "react";
+import Image from "next/image";
 import { UserStats } from "@/lib/types";
 import { FollowButton } from "./FollowButton";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * 프로필 페이지 헤더 컴포넌트
@@ -29,34 +32,52 @@ export function ProfileHeader({
   isFollowing,
   currentUserSupabaseId,
   onFollow,
-  onUnfollow
+  onUnfollow,
 }: ProfileHeaderProps) {
   const { user: currentUser } = useUser();
+  const { showToast } = useToast();
 
-  // 통계 포맷팅 함수
-  const formatCount = (count: number) => {
+  // 통계 포맷팅 함수 (useCallback으로 메모이제이션)
+  const formatCount = useCallback((count: number) => {
     if (count >= 1000000) {
       return `${(count / 1000000).toFixed(1)}M`;
     } else if (count >= 1000) {
       return `${(count / 1000).toFixed(1)}K`;
     }
     return count.toString();
-  };
+  }, []);
 
+  // 포맷된 통계 값들 (useMemo로 계산 결과 메모이제이션)
+  const formattedStats = useMemo(
+    () => ({
+      posts: formatCount(user.posts_count),
+      followers: formatCount(user.followers_count),
+      following: formatCount(user.following_count),
+    }),
+    [user.posts_count, user.followers_count, user.following_count, formatCount],
+  );
 
   // 프로필 편집 버튼 클릭 (1차 MVP 제외)
-  const handleEditProfile = () => {
-    alert("프로필 편집 기능은 2차 개발에서 제공됩니다.");
-  };
+  const handleEditProfile = useCallback(() => {
+    showToast("프로필 편집 기능은 2차 개발에서 제공됩니다.", "info");
+  }, [showToast]);
 
   // 통계 클릭 핸들러 (팔로워/팔로잉 목록은 1차 MVP 제외)
-  const handleStatClick = (type: 'followers' | 'following') => {
-    if (type === 'posts') {
-      // 게시물로 스크롤 (추후 구현)
-      return;
-    }
-    alert(`${type === 'followers' ? '팔로워' : '팔로잉'} 목록은 2차 개발에서 제공됩니다.`);
-  };
+  const handleStatClick = useCallback(
+    (type: "followers" | "following") => {
+      if (type === "posts") {
+        // 게시물로 스크롤 (추후 구현)
+        return;
+      }
+      showToast(
+        `${
+          type === "followers" ? "팔로워" : "팔로잉"
+        } 목록은 2차 개발에서 제공됩니다.`,
+        "info",
+      );
+    },
+    [showToast],
+  );
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -65,17 +86,25 @@ export function ProfileHeader({
         <div className="flex items-center justify-center md:justify-start gap-8 md:gap-16">
           {/* 프로필 이미지 */}
           <div className="flex-shrink-0">
-            <div className="w-24 h-24 md:w-40 md:h-40 rounded-full bg-gray-200 overflow-hidden">
+            <div className="w-24 h-24 md:w-40 md:h-40 rounded-full bg-gray-200 overflow-hidden relative">
               {currentUser?.imageUrl && isOwnProfile ? (
-                <img
+                <Image
                   src={currentUser.imageUrl}
                   alt={`${user.name} 프로필 이미지`}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 96px, 160px"
+                  priority={isOwnProfile}
                 />
               ) : (
                 <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                  <svg className="w-12 h-12 md:w-20 md:h-20 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  <svg
+                    className="w-12 h-12 md:w-20 md:h-20 text-gray-500"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                   </svg>
                 </div>
               )}
@@ -96,7 +125,8 @@ export function ProfileHeader({
                   // 본인 프로필: 프로필 편집 버튼
                   <button
                     onClick={handleEditProfile}
-                    className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="프로필 편집"
+                    className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     disabled
                   >
                     프로필 편집
@@ -118,24 +148,33 @@ export function ProfileHeader({
             <div className="md:hidden mb-4">
               <div className="flex justify-around">
                 <button
-                  onClick={() => handleStatClick('posts')}
-                  className="text-center"
+                  onClick={() => handleStatClick("posts")}
+                  aria-label={`게시물 ${user.posts_count}개`}
+                  className="text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                 >
-                  <div className="font-semibold text-lg">{formatCount(user.posts_count)}</div>
+                  <div className="font-semibold text-lg">
+                    {formattedStats.posts}
+                  </div>
                   <div className="text-gray-500 text-sm">게시물</div>
                 </button>
                 <button
-                  onClick={() => handleStatClick('followers')}
-                  className="text-center"
+                  onClick={() => handleStatClick("followers")}
+                  aria-label={`팔로워 ${user.followers_count}명`}
+                  className="text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                 >
-                  <div className="font-semibold text-lg">{formatCount(user.followers_count)}</div>
+                  <div className="font-semibold text-lg">
+                    {formattedStats.followers}
+                  </div>
                   <div className="text-gray-500 text-sm">팔로워</div>
                 </button>
                 <button
-                  onClick={() => handleStatClick('following')}
-                  className="text-center"
+                  onClick={() => handleStatClick("following")}
+                  aria-label={`팔로잉 ${user.following_count}명`}
+                  className="text-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                 >
-                  <div className="font-semibold text-lg">{formatCount(user.following_count)}</div>
+                  <div className="font-semibold text-lg">
+                    {formattedStats.following}
+                  </div>
                   <div className="text-gray-500 text-sm">팔로잉</div>
                 </button>
               </div>
@@ -144,24 +183,33 @@ export function ProfileHeader({
             {/* Desktop: 통계 정보 (가로 배치) */}
             <div className="hidden md:flex items-center gap-8 mb-4">
               <button
-                onClick={() => handleStatClick('posts')}
-                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                onClick={() => handleStatClick("posts")}
+                aria-label={`게시물 ${user.posts_count}개`}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
-                <span className="font-semibold">{user.posts_count.toLocaleString()}</span>
+                <span className="font-semibold">
+                  {user.posts_count.toLocaleString()}
+                </span>
                 <span className="text-gray-600">게시물</span>
               </button>
               <button
-                onClick={() => handleStatClick('followers')}
-                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                onClick={() => handleStatClick("followers")}
+                aria-label={`팔로워 ${user.followers_count}명`}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
-                <span className="font-semibold">{user.followers_count.toLocaleString()}</span>
+                <span className="font-semibold">
+                  {user.followers_count.toLocaleString()}
+                </span>
                 <span className="text-gray-600">팔로워</span>
               </button>
               <button
-                onClick={() => handleStatClick('following')}
-                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                onClick={() => handleStatClick("following")}
+                aria-label={`팔로잉 ${user.following_count}명`}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
-                <span className="font-semibold">{user.following_count.toLocaleString()}</span>
+                <span className="font-semibold">
+                  {user.following_count.toLocaleString()}
+                </span>
                 <span className="text-gray-600">팔로잉</span>
               </button>
             </div>

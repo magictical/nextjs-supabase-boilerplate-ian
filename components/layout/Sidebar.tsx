@@ -32,7 +32,7 @@ export function Sidebar() {
       label: "검색",
       href: "/search",
       active: pathname === "/search",
-      disabled: true, // 1차 MVP 제외
+      disabled: false, // 검색 기능 구현 완료
     },
     {
       icon: PlusSquare,
@@ -46,7 +46,7 @@ export function Sidebar() {
       label: "활동",
       href: "/activity",
       active: pathname === "/activity",
-      disabled: true, // 1차 MVP 제외
+      disabled: false, // 활동 기능 구현 완료
     },
     {
       icon: User,
@@ -60,15 +60,15 @@ export function Sidebar() {
   return (
     <div className="flex flex-col h-full bg-white border-r border-border">
       {/* 로고 */}
-      <div className="flex items-center justify-center lg:justify-start px-6 py-8 lg:px-8">
+      <div className="flex items-center justify-center lg:justify-start px-3 py-8 lg:px-8">
         <Link href="/" className="text-2xl font-bold">
           <span className="lg:hidden">📷</span>
-          <span className="hidden lg:inline">Instagram</span>
+          <span className="hidden lg:inline">Nistagram</span>
         </Link>
       </div>
 
       {/* 메뉴 아이템들 */}
-      <nav className="flex-1 px-3 lg:px-2">
+      <nav className="flex-1 px-3 lg:px-2" aria-label="주요 네비게이션">
         <ul className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -78,9 +78,11 @@ export function Sidebar() {
             if ("modal" in item && item.modal) {
               const modalMenuItem = (
                 <button
+                  aria-label={item.label}
                   className={cn(
-                    "flex items-center gap-4 px-3 py-3 rounded-lg transition-colors hover:bg-gray-50 group w-full",
-                    "lg:justify-start",
+                    "flex items-center justify-center gap-4 px-3 py-3 rounded-lg transition-colors hover:bg-gray-50 group w-full",
+                    "lg:justify-start lg:gap-4",
+                    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                     isActive && "bg-gray-50 font-semibold",
                   )}
                 >
@@ -112,10 +114,17 @@ export function Sidebar() {
             if ("disabled" in item && item.disabled) {
               const disabledMenuItem = (
                 <button
-                  onClick={() => alert(`${item.label} 기능은 2차 개발에서 제공될 예정입니다.`)}
+                  aria-label={`${item.label} (준비 중)`}
+                  aria-disabled="true"
+                  onClick={() =>
+                    alert(
+                      `${item.label} 기능은 2차 개발에서 제공될 예정입니다.`,
+                    )
+                  }
                   className={cn(
-                    "flex items-center gap-4 px-3 py-3 rounded-lg transition-colors hover:bg-gray-50 group w-full opacity-60 cursor-not-allowed",
-                    "lg:justify-start",
+                    "flex items-center justify-center gap-4 px-3 py-3 rounded-lg transition-colors hover:bg-gray-50 group w-full opacity-60 cursor-not-allowed",
+                    "lg:justify-start lg:gap-4",
+                    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                     isActive && "bg-gray-50 font-semibold",
                   )}
                 >
@@ -143,9 +152,12 @@ export function Sidebar() {
             const linkMenuItem = (
               <Link
                 href={item.href}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-4 px-3 py-3 rounded-lg transition-colors hover:bg-gray-50 group",
-                  "lg:justify-start",
+                  "flex items-center justify-center gap-4 px-3 py-3 rounded-lg transition-colors hover:bg-gray-50 group",
+                  "lg:justify-start lg:gap-4",
+                  "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                   isActive && "bg-gray-50 font-semibold",
                 )}
               >
@@ -202,8 +214,9 @@ export function Sidebar() {
 
           {/* 로그아웃 버튼 */}
           <button
+            aria-label="로그아웃"
             onClick={() => signOut({ redirectUrl: "/" })}
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors w-full text-left"
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             <LogOut className="w-5 h-5 text-gray-600" />
             <span className="text-sm text-gray-700">로그아웃</span>
@@ -221,7 +234,7 @@ export function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900">로그인</p>
-              <p className="text-xs text-gray-500">Instagram 계정으로 로그인</p>
+              <p className="text-xs text-gray-500">Nistagram 계정으로 로그인</p>
             </div>
           </Link>
         </div>

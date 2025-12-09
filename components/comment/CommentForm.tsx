@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { User } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/supabase/utils";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * 댓글 입력 폼 컴포넌트
@@ -17,7 +18,7 @@ import { cn } from "@/lib/supabase/utils";
  * - 로그인 상태 확인
  */
 interface CommentFormProps {
-  postId: string;
+  postId?: string; // 사용하지 않지만 타입 호환성을 위해 유지
   onSubmit: (content: string) => Promise<void>;
   disabled?: boolean;
   placeholder?: string; // 기본값: "댓글 달기..."
@@ -32,6 +33,7 @@ export function CommentForm({
   className,
 }: CommentFormProps) {
   const { user, isSignedIn } = useUser();
+  const { showToast } = useToast();
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -55,7 +57,11 @@ export function CommentForm({
       }
     } catch (error) {
       console.error("댓글 제출 오류:", error);
-      // 에러 처리 (부모 컴포넌트에서 처리)
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "댓글 작성에 실패했습니다. 다시 시도해주세요.";
+      showToast(errorMessage, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -111,6 +117,8 @@ export function CommentForm({
           onKeyDown={handleKeyDown}
           placeholder={isSignedIn ? placeholder : "댓글을 달려면 로그인이 필요합니다"}
           disabled={disabled || !isSignedIn}
+          aria-label="댓글 입력"
+          aria-describedby={isSignedIn ? undefined : "comment-login-required"}
           className={cn(
             "w-full px-0 py-1 text-sm bg-transparent border-none resize-none",
             "placeholder:text-gray-500 focus:outline-none focus:ring-0",
@@ -120,6 +128,11 @@ export function CommentForm({
           rows={1}
           style={{ height: "auto" }}
         />
+        {!isSignedIn && (
+          <span id="comment-login-required" className="sr-only">
+            댓글을 작성하려면 로그인이 필요합니다
+          </span>
+        )}
 
         {/* 게시 버튼 */}
         {canSubmit && (

@@ -68,7 +68,7 @@ export function PostMenu({ postId, isOwner, onDelete }: PostMenuProps) {
 
     } catch (error) {
       console.error('Post deletion error:', error);
-      alert(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+      // 에러는 부모 컴포넌트에서 Toast로 표시됨
     } finally {
       setIsDeleting(false);
     }
@@ -82,16 +82,20 @@ export function PostMenu({ postId, isOwner, onDelete }: PostMenuProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="text-gray-600 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100 transition-colors">
-            <MoreHorizontal className="w-5 h-5" />
+          <button
+            aria-label="게시물 메뉴"
+            className="text-gray-600 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <MoreHorizontal className="w-5 h-5" aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem
             onClick={handleDeleteClick}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50"
+            aria-label="게시물 삭제"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" />
             삭제
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClerkSupabaseClient } from "@/lib/supabase/server";
+import {
+  createUnauthorizedResponse,
+  createBadRequestResponse,
+  createNotFoundResponse,
+  createServerErrorResponse,
+  createErrorResponse,
+} from "@/lib/utils/api-error";
 
 /**
  * 좋아요 API Route
@@ -16,14 +23,16 @@ import { createClerkSupabaseClient } from "@/lib/supabase/server";
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log("API /api/likes POST called");
+    if (process.env.NODE_ENV === "development") {
+      console.log("API /api/likes POST called");
+    }
 
     // Clerk 인증 확인
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json(
         { error: "인증이 필요합니다." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -35,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!post_id) {
       return NextResponse.json(
         { error: "게시물 ID가 필요합니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -51,10 +60,7 @@ export async function POST(request: NextRequest) {
 
     if (userError || !userData) {
       console.error("User lookup error:", userError);
-      return NextResponse.json(
-        { error: "사용자를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("사용자를 찾을 수 없습니다.");
     }
 
     // 2. 게시물 존재 확인
@@ -66,10 +72,7 @@ export async function POST(request: NextRequest) {
 
     if (postError || !postData) {
       console.error("Post lookup error:", postError);
-      return NextResponse.json(
-        { error: "게시물을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("게시물을 찾을 수 없습니다.");
     }
 
     // 3. 좋아요 추가 (중복 방지: UNIQUE 제약조건 활용)
@@ -85,31 +88,30 @@ export async function POST(request: NextRequest) {
     if (likeError) {
       // 이미 좋아요한 경우 (중복 키 에러)
       if (likeError.code === "23505") {
-        return NextResponse.json(
-          { error: "이미 좋아요한 게시물입니다." },
-          { status: 409 }
+        return createErrorResponse(
+          "이미 좋아요한 게시물입니다.",
+          409,
+          "CONFLICT",
         );
       }
       console.error("Like insertion error:", likeError);
-      return NextResponse.json(
-        { error: "좋아요 추가에 실패했습니다." },
-        { status: 500 }
+      return createServerErrorResponse(
+        "좋아요 추가에 실패했습니다.",
+        likeError,
       );
     }
 
-    console.log("Like added successfully:", likeData.id);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Like added successfully:", likeData.id);
+    }
 
     return NextResponse.json({
       success: true,
       like: likeData,
     });
-
   } catch (error) {
     console.error("Likes POST API error:", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return createServerErrorResponse(undefined, error);
   }
 }
 
@@ -118,14 +120,16 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    console.log("API /api/likes DELETE called");
+    if (process.env.NODE_ENV === "development") {
+      console.log("API /api/likes DELETE called");
+    }
 
     // Clerk 인증 확인
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json(
         { error: "인증이 필요합니다." },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -137,7 +141,7 @@ export async function DELETE(request: NextRequest) {
     if (!post_id) {
       return NextResponse.json(
         { error: "게시물 ID가 필요합니다." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -153,10 +157,7 @@ export async function DELETE(request: NextRequest) {
 
     if (userError || !userData) {
       console.error("User lookup error:", userError);
-      return NextResponse.json(
-        { error: "사용자를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("사용자를 찾을 수 없습니다.");
     }
 
     // 2. 좋아요 제거
@@ -169,32 +170,27 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteError) {
       console.error("Like deletion error:", deleteError);
-      return NextResponse.json(
-        { error: "좋아요 제거에 실패했습니다." },
-        { status: 500 }
+      return createServerErrorResponse(
+        "좋아요 제거에 실패했습니다.",
+        deleteError,
       );
     }
 
     // 삭제된 레코드가 없는 경우 (좋아요가 없었던 경우)
     if (!deleteData || deleteData.length === 0) {
-      return NextResponse.json(
-        { error: "좋아요가 존재하지 않습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("좋아요가 존재하지 않습니다.");
     }
 
-    console.log("Like removed successfully:", deleteData[0].id);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Like removed successfully:", deleteData[0].id);
+    }
 
     return NextResponse.json({
       success: true,
       like: deleteData[0],
     });
-
   } catch (error) {
     console.error("Likes DELETE API error:", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return createServerErrorResponse(undefined, error);
   }
 }

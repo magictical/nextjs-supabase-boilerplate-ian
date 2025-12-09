@@ -309,8 +309,6 @@ export interface PostsResponse {
     hasMore: boolean;
   };
 }
-  type: string;
-}
 
 /** 업로드 결과 */
 export interface UploadResult {

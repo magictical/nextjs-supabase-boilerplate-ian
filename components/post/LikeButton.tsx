@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
+import { handleFetchError, logError } from "@/lib/utils/error-handler";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Instagram 클론 LikeButton 컴포넌트
@@ -20,7 +22,7 @@ interface LikeButtonProps {
   isLiked: boolean;
   likesCount: number;
   onLikeChange?: (newLikesCount: number, newIsLiked: boolean) => void;
-  size?: 'sm' | 'md' | 'lg'; // 기본값: 'md'
+  size?: "sm" | "md" | "lg"; // 기본값: 'md'
   showCount?: boolean; // 좋아요 수 표시 여부 (기본값: false)
 }
 
@@ -29,19 +31,26 @@ export function LikeButton({
   isLiked: initialIsLiked,
   likesCount: initialLikesCount,
   onLikeChange,
-  size = 'md',
+  size = "md",
   showCount = false,
 }: LikeButtonProps) {
+  const { showToast } = useToast();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(initialLikesCount);
   const [isLoading, setIsLoading] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // props 변경 시 내부 상태 동기화 (더블탭 등 외부에서 상태 변경 시)
+  useEffect(() => {
+    setIsLiked(initialIsLiked);
+    setLikesCount(initialLikesCount);
+  }, [initialIsLiked, initialLikesCount]);
+
   // 크기별 스타일링
   const sizeClasses = {
-    sm: 'w-5 h-5',
-    md: 'w-6 h-6',
-    lg: 'w-7 h-7',
+    sm: "w-5 h-5",
+    md: "w-6 h-6",
+    lg: "w-7 h-7",
   };
 
   // 좋아요 토글 핸들러
@@ -61,38 +70,58 @@ export function LikeButton({
     setTimeout(() => setIsAnimating(false), 150);
 
     try {
-      const method = newIsLiked ? 'POST' : 'DELETE';
-      const response = await fetch('/api/likes', {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ post_id: postId }),
-      });
+      const method = newIsLiked ? "POST" : "DELETE";
+      let response: Response | null = null;
 
-      const data = await response.json();
+      try {
+        response = await fetch("/api/likes", {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ post_id: postId }),
+        });
+      } catch (fetchErr) {
+        // 네트워크 에러 처리
+        const errorInfo = await handleFetchError(null, fetchErr);
+        logError(errorInfo, "LikeButton.handleLikeToggle");
+
+        // 에러 발생 시 Optimistic Update 롤백
+        setIsLiked(!newIsLiked);
+        setLikesCount(initialLikesCount);
+
+        showToast(errorInfo.message, "error");
+        return;
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || '좋아요 처리에 실패했습니다');
+        const errorInfo = await handleFetchError(response, null);
+        logError(errorInfo, "LikeButton.handleLikeToggle");
+
+        // 에러 발생 시 Optimistic Update 롤백
+        setIsLiked(!newIsLiked);
+        setLikesCount(initialLikesCount);
+
+        showToast(errorInfo.message, "error");
+        return;
       }
+
+      const data = await response.json();
 
       // 부모 컴포넌트에 변경사항 알림
       if (onLikeChange) {
         onLikeChange(newLikesCount, newIsLiked);
       }
-
-      console.log(`${newIsLiked ? 'Liked' : 'Unliked'} post:`, postId);
-
     } catch (error) {
-      console.error('Like toggle error:', error);
+      // 예상치 못한 에러 처리
+      const errorInfo = await handleFetchError(null, error);
+      logError(errorInfo, "LikeButton.handleLikeToggle");
 
       // 에러 발생 시 Optimistic Update 롤백
       setIsLiked(!newIsLiked);
       setLikesCount(initialLikesCount);
 
-      // 사용자에게 에러 알림 (실제 앱에서는 toast 사용)
-      alert(error instanceof Error ? error.message : '좋아요 처리 중 오류가 발생했습니다');
-
+      showToast(errorInfo.message, "error");
     } finally {
       setIsLoading(false);
     }
@@ -102,17 +131,19 @@ export function LikeButton({
     <button
       onClick={handleLikeToggle}
       disabled={isLoading}
+      aria-label={isLiked ? "좋아요 취소" : "좋아요"}
+      aria-pressed={isLiked}
       className={`
-        flex items-center space-x-2 transition-all duration-150
+        flex items-center space-x-2 transition-transform duration-150 ease-out
         hover:opacity-60 disabled:cursor-not-allowed disabled:opacity-50
-        ${isAnimating ? 'scale-125' : 'scale-100'}
+        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded
+        ${isAnimating ? "scale-[1.3]" : "scale-100"}
       `}
-      aria-label={isLiked ? '좋아요 취소' : '좋아요'}
     >
       <Heart
         className={`
           ${sizeClasses[size]}
-          ${isLiked ? 'fill-red-500 text-red-500' : 'text-black'}
+          ${isLiked ? "fill-red-500 text-red-500" : "text-black"}
           transition-colors duration-150
         `}
       />

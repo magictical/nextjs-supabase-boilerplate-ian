@@ -35,7 +35,7 @@ export function BottomNav() {
       label: "검색",
       href: "/search",
       active: pathname === "/search",
-      disabled: true, // 1차 MVP 제외
+      disabled: false, // 검색 기능 구현 완료
     },
     {
       icon: PlusSquare,
@@ -49,7 +49,7 @@ export function BottomNav() {
       label: "활동",
       href: "/activity",
       active: pathname === "/activity",
-      disabled: true, // 1차 MVP 제외
+      disabled: false, // 활동 기능 구현 완료
     },
     {
       icon: User,
@@ -61,7 +61,10 @@ export function BottomNav() {
   ] as const;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border h-12">
+    <nav
+      aria-label="하단 네비게이션"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border h-[50px]"
+    >
       <div className="flex items-center justify-around h-full px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -71,8 +74,10 @@ export function BottomNav() {
           if ("modal" in item && item.modal) {
             const modalNavItem = (
               <button
+                aria-label={item.label}
                 className={cn(
                   "flex flex-col items-center justify-center p-1 rounded-lg transition-colors min-w-0 flex-1",
+                  "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                   isActive ? "text-black" : "text-gray-600",
                 )}
               >
@@ -93,7 +98,9 @@ export function BottomNav() {
               </button>
             );
 
-            return <CreatePostModal key={item.href}>{modalNavItem}</CreatePostModal>;
+            return (
+              <CreatePostModal key={item.href}>{modalNavItem}</CreatePostModal>
+            );
           }
 
           // disabled된 버튼들은 클릭 시 메시지 표시 (프로필 제외)
@@ -138,9 +145,14 @@ export function BottomNav() {
             const disabledNavItem = (
               <button
                 key={item.href}
-                onClick={() => alert(`${item.label} 기능은 2차 개발에서 제공될 예정입니다.`)}
+                aria-label={`${item.label} (준비 중)`}
+                aria-disabled="true"
+                onClick={() =>
+                  alert(`${item.label} 기능은 2차 개발에서 제공될 예정입니다.`)
+                }
                 className={cn(
                   "flex flex-col items-center justify-center p-1 rounded-lg transition-colors min-w-0 flex-1 opacity-60 cursor-not-allowed",
+                  "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                   isActive ? "text-black" : "text-gray-400",
                 )}
               >
@@ -169,8 +181,11 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex flex-col items-center justify-center p-1 rounded-lg transition-colors min-w-0 flex-1",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                 isActive ? "text-black" : "text-gray-600",
               )}
             >

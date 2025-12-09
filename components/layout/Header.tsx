@@ -20,29 +20,44 @@ export function Header() {
   const { signOut } = useClerk();
 
   return (
-    <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-border h-16">
+    <header
+      role="banner"
+      aria-label="모바일 헤더"
+      className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-border h-[60px]"
+    >
       <div className="flex items-center justify-between h-full px-4">
-        {/* 좌측: Instagram 로고 */}
+        {/* 좌측: Nistagram 로고 */}
         <Link href="/" className="flex items-center">
-          <span className="text-xl font-bold text-black">Instagram</span>
+          <span className="text-xl font-bold text-black">Nistagram</span>
         </Link>
 
         {/* 우측: 아이콘들 */}
         <div className="flex items-center space-x-4">
           {/* 만들기 버튼 */}
           <CreatePostModal>
-            <button className="p-1">
+            <button
+              aria-label="게시물 만들기"
+              className="p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            >
               <Plus className="w-6 h-6 text-black" />
             </button>
           </CreatePostModal>
 
           {/* 좋아요/활동 버튼 */}
-          <Link href="/activity" className="p-1">
+          <Link
+            href="/activity"
+            aria-label="활동"
+            className="p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+          >
             <Heart className="w-6 h-6 text-black" />
           </Link>
 
           {/* DM 버튼 */}
-          <Link href="/messages" className="p-1">
+          <Link
+            href="/messages"
+            aria-label="메시지"
+            className="p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+          >
             <MessageCircle className="w-6 h-6 text-black" />
           </Link>
 
@@ -57,7 +72,11 @@ export function Header() {
                 }
               }}
             >
-              <Link href={`/profile/${user.id}`} className="p-1">
+              <Link
+                href={`/profile/${user.id}`}
+                aria-label="프로필"
+                className="p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              >
                 <div className="w-6 h-6 rounded-full bg-gray-300 overflow-hidden">
                   {user.imageUrl ? (
                     <img
@@ -78,7 +97,11 @@ export function Header() {
               </div>
             </div>
           ) : (
-            <Link href="/sign-in" className="p-1">
+            <Link
+              href="/sign-in"
+              aria-label="로그인"
+              className="p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            >
               <User className="w-6 h-6 text-black" />
             </Link>
           )}

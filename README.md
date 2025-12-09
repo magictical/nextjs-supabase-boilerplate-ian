@@ -32,6 +32,7 @@
 Next.js 15, Clerk, Supabase를 활용한 모던 SaaS 애플리케이션 템플릿입니다.
 
 **핵심 특징:**
+
 - ✨ Next.js 15 + React 19 최신 기능 활용
 - 🔐 Clerk와 Supabase 네이티브 통합 (2025년 권장 방식)
 - 🎨 Tailwind CSS v4 + shadcn/ui
@@ -72,12 +73,14 @@ Next.js 15, Clerk, Supabase를 활용한 모던 SaaS 애플리케이션 템플�
 ## 주요 기능
 
 ### 🔐 인증 시스템
+
 - Clerk를 통한 안전한 사용자 인증
 - 소셜 로그인 지원 (Google 등)
 - Clerk 사용자 자동으로 Supabase DB에 동기화
 - 한국어 UI 지원
 
 ### 🗄️ 데이터베이스 통합
+
 - Clerk 토큰 기반 Supabase 인증 (JWT 템플릿 불필요)
 - 환경별 Supabase 클라이언트 분리:
   - Client Component용 (`useClerkSupabaseClient`)
@@ -86,12 +89,14 @@ Next.js 15, Clerk, Supabase를 활용한 모던 SaaS 애플리케이션 템플�
 - SQL 마이그레이션 시스템
 
 ### 🎨 UI/UX
+
 - shadcn/ui 기반 모던 컴포넌트
 - 완전한 반응형 디자인
 - 다크/라이트 모드 지원 가능
 - 접근성 준수 (WCAG)
 
 ### 🏗️ 아키텍처
+
 - Server Actions 우선 사용
 - 타입 안전성 보장
 - 모듈화된 코드 구조
@@ -158,9 +163,11 @@ npm install -g pnpm
 
    - **Provider Name**: `Clerk` (또는 원하는 이름)
    - **JWT Issuer (Issuer URL)**:
+
      ```
      https://your-app-12.clerk.accounts.dev
      ```
+
      (`your-app-12` 부분을 실제 Clerk Frontend API URL로 교체)
 
    - **JWKS Endpoint (JWKS URI)**:
@@ -180,7 +187,7 @@ npm install -g pnpm
 1. Supabase Dashboard → **Storage** 메뉴
 2. **"New bucket"** 클릭
 3. 버킷 정보 입력:
-   - **Name**: `uploads` (`.env.example`과 동일하게)
+   - **Name**: `uploads` (`.env`과 동일하게)
    - **Public bucket**: 필요에 따라 선택
      - Public: 누구나 URL로 파일 접근 가능
      - Private: 인증된 사용자만 접근 (RLS 정책 필요)
@@ -195,6 +202,7 @@ npm install -g pnpm
 5. 성공 메시지 확인 (`Success. No rows returned`)
 
 **생성되는 테이블:**
+
 - `users`: Clerk 사용자와 동기화되는 사용자 정보 테이블
 
 #### 6. 환경 변수 설정
@@ -283,6 +291,7 @@ pnpm dev
 브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인합니다.
 
 **테스트 페이지:**
+
 - `/auth-test`: Clerk + Supabase 인증 통합 테스트
 - `/storage-test`: Supabase Storage 업로드 테스트
 

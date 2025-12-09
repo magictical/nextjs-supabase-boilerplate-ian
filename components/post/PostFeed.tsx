@@ -5,6 +5,8 @@ import { PostCard } from "./PostCard";
 import { PostCardSkeleton } from "./PostCardSkeleton";
 import { PostModal } from "./PostModal";
 import { PostWithUser, PostsResponse } from "@/lib/types";
+import { handleFetchError, logError } from "@/lib/utils/error-handler";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * Instagram 클론 PostFeed 컴포넌트
@@ -22,7 +24,12 @@ interface PostFeedProps {
   currentUserId?: string; // 현재 로그인한 사용자 ID (삭제 기능용)
 }
 
-export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedProps) {
+export function PostFeed({
+  initialPosts = [],
+  userId,
+  currentUserId,
+}: PostFeedProps) {
+  const { showToast } = useToast();
   const [posts, setPosts] = useState<PostWithUser[]>(initialPosts);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -56,12 +63,27 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
           params.append("userId", userId);
         }
 
-        const response = await fetch(`/api/posts?${params}`);
-        const data: PostsResponse = await response.json();
+        let response: Response | null = null;
+        try {
+          response = await fetch(`/api/posts?${params}`);
+        } catch (fetchErr) {
+          // 네트워크 에러 처리
+          const errorInfo = await handleFetchError(null, fetchErr);
+          logError(errorInfo, "PostFeed.fetchPosts");
+          setError(errorInfo.message);
+          setHasMore(false);
+          return;
+        }
 
         if (!response.ok) {
-          throw new Error(data.error || "Failed to fetch posts");
+          const errorInfo = await handleFetchError(response, null);
+          logError(errorInfo, "PostFeed.fetchPosts");
+          setError(errorInfo.message);
+          setHasMore(false);
+          return;
         }
+
+        const data: PostsResponse = await response.json();
 
         if (append) {
           setPosts((prev) => [...prev, ...data.data]);
@@ -73,10 +95,10 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
         setOffset(currentOffset + data.data.length);
         setError(null);
       } catch (err) {
-        console.error("PostFeed fetch error:", err);
-        const errorMessage =
-          err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다";
-        setError(errorMessage);
+        // 예상치 못한 에러 처리
+        const errorInfo = await handleFetchError(null, err);
+        logError(errorInfo, "PostFeed.fetchPosts");
+        setError(errorInfo.message);
 
         // 에러가 발생하면 더 이상 데이터를 로드하지 않음
         setHasMore(false);
@@ -141,19 +163,31 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
   // 좋아요 추가 핸들러
   const handleLike = useCallback(async (postId: string) => {
     try {
-      const response = await fetch("/api/likes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ post_id: postId }),
-      });
-
-      const data = await response.json();
+      let response: Response | null = null;
+      try {
+        response = await fetch("/api/likes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ post_id: postId }),
+        });
+      } catch (fetchErr) {
+        // 네트워크 에러 처리
+        const errorInfo = await handleFetchError(null, fetchErr);
+        logError(errorInfo, "PostFeed.handleLike");
+        showToast(errorInfo.message, "error");
+        return;
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "좋아요 추가에 실패했습니다");
+        const errorInfo = await handleFetchError(response, null);
+        logError(errorInfo, "PostFeed.handleLike");
+        showToast(errorInfo.message, "error");
+        return;
       }
+
+      await response.json();
 
       // 게시물 상태 업데이트
       setPosts((prevPosts) =>
@@ -167,35 +201,42 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
             : post,
         ),
       );
-
-      console.log("Liked post:", postId);
     } catch (error) {
-      console.error("Like error:", error);
-      // 사용자에게 에러 알림 (실제 앱에서는 toast 사용)
-      alert(
-        error instanceof Error
-          ? error.message
-          : "좋아요 처리 중 오류가 발생했습니다",
-      );
+      // 예상치 못한 에러 처리
+      const errorInfo = await handleFetchError(null, error);
+      logError(errorInfo, "PostFeed.handleLike");
+      showToast(errorInfo.message, "error");
     }
-  }, []);
+  }, [showToast]);
 
   // 좋아요 제거 핸들러
   const handleUnlike = useCallback(async (postId: string) => {
     try {
-      const response = await fetch("/api/likes", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ post_id: postId }),
-      });
-
-      const data = await response.json();
+      let response: Response | null = null;
+      try {
+        response = await fetch("/api/likes", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ post_id: postId }),
+        });
+      } catch (fetchErr) {
+        // 네트워크 에러 처리
+        const errorInfo = await handleFetchError(null, fetchErr);
+        logError(errorInfo, "PostFeed.handleUnlike");
+        showToast(errorInfo.message, "error");
+        return;
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "좋아요 제거에 실패했습니다");
+        const errorInfo = await handleFetchError(response, null);
+        logError(errorInfo, "PostFeed.handleUnlike");
+        showToast(errorInfo.message, "error");
+        return;
       }
+
+      await response.json();
 
       // 게시물 상태 업데이트
       setPosts((prevPosts) =>
@@ -209,32 +250,30 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
             : post,
         ),
       );
-
-      console.log("Unliked post:", postId);
     } catch (error) {
-      console.error("Unlike error:", error);
-      // 사용자에게 에러 알림 (실제 앱에서는 toast 사용)
-      alert(
-        error instanceof Error
-          ? error.message
-          : "좋아요 제거 중 오류가 발생했습니다",
-      );
+      // 예상치 못한 에러 처리
+      const errorInfo = await handleFetchError(null, error);
+      logError(errorInfo, "PostFeed.handleUnlike");
+      showToast(errorInfo.message, "error");
     }
-  }, []);
+  }, [showToast]);
 
   // 게시물 삭제 핸들러
-  const handleDelete = useCallback(async (postId: string) => {
-    // 게시물 목록에서 즉시 제거 (낙관적 업데이트)
-    setPosts((prevPosts) => prevPosts.filter((post) => post.post_id !== postId));
+  const handleDelete = useCallback(
+    async (postId: string) => {
+      // 게시물 목록에서 즉시 제거 (낙관적 업데이트)
+      setPosts((prevPosts) =>
+        prevPosts.filter((post) => post.post_id !== postId),
+      );
 
-    // 선택된 게시물이 삭제된 경우 모달 닫기
-    if (selectedPostId === postId) {
-      setSelectedPostId(null);
-      setSelectedPostIndex(-1);
-    }
-
-    console.log("Deleted post:", postId);
-  }, [selectedPostId]);
+      // 선택된 게시물이 삭제된 경우 모달 닫기
+      if (selectedPostId === postId) {
+        setSelectedPostId(null);
+        setSelectedPostIndex(-1);
+      }
+    },
+    [selectedPostId],
+  );
 
   // 댓글 작성 핸들러
   const handleComment = useCallback(async (postId: string, content: string) => {
@@ -248,15 +287,46 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
         ),
       );
 
-      const response = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post_id: postId, content }),
-      });
+      let response: Response | null = null;
+      try {
+        response = await fetch("/api/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ post_id: postId, content }),
+        });
+      } catch (fetchErr) {
+        // 네트워크 에러 처리
+        const errorInfo = await handleFetchError(null, fetchErr);
+        logError(errorInfo, "PostFeed.handleComment");
+
+        // Rollback UI
+        setPosts((prevPosts) =>
+          prevPosts.map((p) =>
+            p.post_id === postId
+              ? { ...p, comments_count: Math.max(0, p.comments_count - 1) }
+              : p,
+          ),
+        );
+
+        showToast(errorInfo.message, "error");
+        return;
+      }
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "댓글 작성에 실패했습니다.");
+        const errorInfo = await handleFetchError(response, null);
+        logError(errorInfo, "PostFeed.handleComment");
+
+        // Rollback UI
+        setPosts((prevPosts) =>
+          prevPosts.map((p) =>
+            p.post_id === postId
+              ? { ...p, comments_count: Math.max(0, p.comments_count - 1) }
+              : p,
+          ),
+        );
+
+        showToast(errorInfo.message, "error");
+        return;
       }
 
       const newComment = await response.json();
@@ -278,12 +348,9 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
         }),
       );
     } catch (error) {
-      console.error("댓글 작성 에러:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "댓글 작성 중 오류가 발생했습니다.",
-      );
+      // 예상치 못한 에러 처리
+      const errorInfo = await handleFetchError(null, error);
+      logError(errorInfo, "PostFeed.handleComment");
 
       // Rollback UI
       setPosts((prevPosts) =>
@@ -293,8 +360,10 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
             : p,
         ),
       );
+
+      showToast(errorInfo.message, "error");
     }
-  }, []);
+  }, [showToast]);
 
   // 댓글 삭제 핸들러
   const handleCommentDelete = useCallback(async (commentId: string) => {
@@ -315,23 +384,61 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
         }),
       );
 
-      const response = await fetch("/api/comments", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment_id: commentId }),
-      });
+      let response: Response | null = null;
+      try {
+        response = await fetch("/api/comments", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment_id: commentId }),
+        });
+      } catch (fetchErr) {
+        // 네트워크 에러 처리
+        const errorInfo = await handleFetchError(null, fetchErr);
+        logError(errorInfo, "PostFeed.handleCommentDelete");
+
+        // Rollback UI
+        setPosts((prevPosts) =>
+          prevPosts.map((p) => {
+            if (p.recentComments.length < 2) {
+              return {
+                ...p,
+                comments_count: p.comments_count + 1,
+              };
+            }
+            return p;
+          }),
+        );
+
+        showToast(errorInfo.message, "error");
+        return;
+      }
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "댓글 삭제에 실패했습니다.");
+        const errorInfo = await handleFetchError(response, null);
+        logError(errorInfo, "PostFeed.handleCommentDelete");
+
+        // Rollback UI
+        setPosts((prevPosts) =>
+          prevPosts.map((p) => {
+            if (p.recentComments.length < 2) {
+              return {
+                ...p,
+                comments_count: p.comments_count + 1,
+              };
+            }
+            return p;
+          }),
+        );
+
+        showToast(errorInfo.message, "error");
+        return;
       }
     } catch (error) {
-      console.error("댓글 삭제 에러:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "댓글 삭제 중 오류가 발생했습니다.",
-      );
+      // 예상치 못한 에러 처리
+      const errorInfo = await handleFetchError(null, error);
+      logError(errorInfo, "PostFeed.handleCommentDelete");
+
+      showToast(errorInfo.message, "error");
 
       // Rollback UI (댓글 수 증가 및 목록 복원 시도)
       setPosts((prevPosts) =>
@@ -514,7 +621,7 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
   return (
     <div className="space-y-6">
       {/* 게시물 목록 */}
-      {posts.map((post) => (
+      {posts.map((post, index) => (
         <PostCard
           key={post.post_id}
           post={post}
@@ -525,6 +632,7 @@ export function PostFeed({ initialPosts = [], userId, currentUserId }: PostFeedP
           onCommentDelete={handleCommentDelete}
           onShowDetail={handleShowDetail}
           onDelete={handleDelete}
+          index={index}
         />
       ))}
 

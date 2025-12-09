@@ -2,8 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
+import { useState, memo, useMemo } from "react";
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  Bookmark,
+} from "lucide-react";
 import { PostWithUser } from "@/lib/types";
 import { LikeButton } from "./LikeButton";
 import { CommentList } from "@/components/comment/CommentList";
@@ -31,9 +36,10 @@ interface PostCardProps {
   onCommentDelete?: (commentId: string) => void;
   onShowDetail?: (postId: string) => void;
   onDelete?: (postId: string) => void;
+  index?: number; // 게시물 인덱스 (priority 설정용)
 }
 
-export function PostCard({
+function PostCardComponent({
   post,
   currentUserId,
   onLike,
@@ -42,17 +48,19 @@ export function PostCard({
   onCommentDelete,
   onShowDetail,
   onDelete,
+  index = 999, // 기본값은 큰 수로 설정하여 priority false
 }: PostCardProps) {
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [isDoubleTapped, setIsDoubleTapped] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // 좋아요 상태 관리 (실시간 업데이트용)
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [isLiked, setIsLiked] = useState(post.isLiked);
 
-  // 더블 탭 감지 및 좋아요 토글
+  // 더블 탭 감지 및 좋아요 토글 (useCallback으로 메모이제이션)
   const [lastTap, setLastTap] = useState(0);
-  const handleImageClick = () => {
+  const handleImageClick = useCallback(() => {
     const currentTime = new Date().getTime();
     const tapGap = currentTime - lastTap;
 
@@ -77,18 +85,21 @@ export function PostCard({
     }
 
     setLastTap(currentTime);
-  };
+  }, [lastTap, isLiked, likesCount, onLike, onUnlike, post.post_id]);
 
-  // LikeButton의 좋아요 변경 핸들러
-  const handleLikeChange = (newLikesCount: number, newIsLiked: boolean) => {
-    setLikesCount(newLikesCount);
-    setIsLiked(newIsLiked);
-  };
+  // LikeButton의 좋아요 변경 핸들러 (useCallback으로 메모이제이션)
+  const handleLikeChange = useCallback(
+    (newLikesCount: number, newIsLiked: boolean) => {
+      setLikesCount(newLikesCount);
+      setIsLiked(newIsLiked);
+    },
+    [],
+  );
 
-  // 상대 시간 표시 함수
-  const formatRelativeTime = (timestamp: string) => {
+  // 상대 시간 표시 (메모이제이션)
+  const formattedTime = useMemo(() => {
     const now = new Date();
-    const postTime = new Date(timestamp);
+    const postTime = new Date(post.created_at);
     const diffInMs = now.getTime() - postTime.getTime();
     const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
     const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
@@ -100,20 +111,27 @@ export function PostCard({
     if (diffInDays < 7) return `${diffInDays}일 전`;
 
     return postTime.toLocaleDateString("ko-KR");
-  };
+  }, [post.created_at]);
 
-  // 캡션 텍스트 처리
-  const shouldShowMoreButton = post.caption && post.caption.length > 100;
-  const displayCaption = showFullCaption || !shouldShowMoreButton
-    ? post.caption
-    : `${post.caption.slice(0, 100)}...`;
+  // 캡션 텍스트 처리 (메모이제이션)
+  const { shouldShowMoreButton, displayCaption } = useMemo(() => {
+    const shouldShow = post.caption && post.caption.length > 100;
+    const display =
+      showFullCaption || !shouldShow
+        ? post.caption
+        : `${post.caption?.slice(0, 100)}...`;
+    return { shouldShowMoreButton: shouldShow, displayCaption: display };
+  }, [post.caption, showFullCaption]);
 
-  // 댓글 제출 (CommentForm에서 호출)
-  const handleComment = async (content: string) => {
-    if (onComment) {
-      await onComment(post.post_id, content);
-    }
-  };
+  // 댓글 제출 (CommentForm에서 호출) - useCallback으로 메모이제이션
+  const handleComment = useCallback(
+    async (content: string) => {
+      if (onComment) {
+        await onComment(post.post_id, content);
+      }
+    },
+    [onComment, post.post_id],
+  );
 
   return (
     <article className="bg-white border border-border rounded-lg overflow-hidden">
@@ -137,9 +155,7 @@ export function PostCard({
         </Link>
 
         <div className="flex items-center space-x-2">
-          <time className="text-xs text-gray-500">
-            {formatRelativeTime(post.created_at)}
-          </time>
+          <time className="text-xs text-gray-500">{formattedTime}</time>
           <PostMenu
             postId={post.post_id}
             isOwner={currentUserId === post.clerk_id}
@@ -153,19 +169,36 @@ export function PostCard({
         className="aspect-square bg-gray-100 relative cursor-pointer"
         onClick={handleImageClick}
       >
-        <Image
-          src={post.image_url}
-          alt={`게시물 이미지 - ${post.name}`}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          priority={false}
-        />
+        {!imageError ? (
+          <Image
+            src={post.image_url}
+            alt={`${post.name}의 게시물${
+              post.caption
+                ? `: ${post.caption.substring(0, 30)}${
+                    post.caption.length > 30 ? "..." : ""
+                  }`
+                : ""
+            }`}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            priority={index < 3}
+            loading={index < 3 ? undefined : "lazy"}
+            placeholder="empty"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            <span className="text-gray-400 text-sm">
+              이미지를 불러올 수 없습니다
+            </span>
+          </div>
+        )}
 
         {/* 더블 탭 좋아요 애니메이션 */}
         {isDoubleTapped && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Heart className="w-24 h-24 text-white fill-red-500 animate-ping" />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <Heart className="w-24 h-24 text-white fill-red-500 animate-double-tap-heart" />
           </div>
         )}
       </div>
@@ -182,17 +215,24 @@ export function PostCard({
 
           <button
             onClick={() => onShowDetail?.(post.post_id)}
-            className="hover:opacity-60 transition-opacity"
+            aria-label="댓글"
+            className="hover:opacity-60 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
           >
             <MessageCircle className="w-6 h-6 text-black" />
           </button>
 
-          <button className="hover:opacity-60 transition-opacity">
+          <button
+            aria-label="공유"
+            className="hover:opacity-60 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+          >
             <Send className="w-6 h-6 text-black" />
           </button>
         </div>
 
-        <button className="hover:opacity-60 transition-opacity">
+        <button
+          aria-label="북마크"
+          className="hover:opacity-60 transition-opacity focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+        >
           <Bookmark className="w-6 h-6 text-black" />
         </button>
       </div>
@@ -216,7 +256,8 @@ export function PostCard({
             {shouldShowMoreButton && (
               <button
                 onClick={() => setShowFullCaption(!showFullCaption)}
-                className="text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                aria-label={showFullCaption ? "캡션 접기" : "캡션 더 보기"}
+                className="text-gray-500 text-sm hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
                 {showFullCaption ? "접기" : "... 더 보기"}
               </button>
@@ -229,7 +270,8 @@ export function PostCard({
           <div className="mb-3">
             <button
               onClick={() => onShowDetail?.(post.post_id)}
-              className="text-gray-500 text-sm hover:text-gray-700 transition-colors mb-2 block"
+              aria-label={`댓글 ${post.comments_count}개 모두 보기`}
+              className="text-gray-500 text-sm hover:text-gray-700 transition-colors mb-2 block focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
               댓글 {post.comments_count}개 모두 보기
             </button>
@@ -256,6 +298,4 @@ export function PostCard({
   );
 }
 
-
-
-
+export const PostCard = memo(PostCardComponent);

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createClerkSupabaseClient } from "@/lib/supabase/server";
+import {
+  createUnauthorizedResponse,
+  createBadRequestResponse,
+  createForbiddenResponse,
+  createNotFoundResponse,
+  createServerErrorResponse,
+} from "@/lib/utils/api-error";
 
 /**
  * 댓글 관련 API
@@ -11,33 +18,31 @@ import { createClerkSupabaseClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("API /api/comments POST called");
+    if (process.env.NODE_ENV === "development") {
+      console.log("API /api/comments POST called");
+    }
 
     // Clerk 인증 확인
     const { userId: clerkUserId } = await auth();
     if (!clerkUserId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+      return createUnauthorizedResponse();
     }
 
     // 요청 본문 파싱
     const { post_id, content } = await request.json();
 
     // 유효성 검증
-    if (!post_id || !content || typeof content !== "string" || content.trim().length === 0) {
-      return NextResponse.json(
-        { error: "post_id와 content가 필요합니다." },
-        { status: 400 }
-      );
+    if (
+      !post_id ||
+      !content ||
+      typeof content !== "string" ||
+      content.trim().length === 0
+    ) {
+      return createBadRequestResponse("post_id와 content가 필요합니다.");
     }
 
     if (content.trim().length > 500) {
-      return NextResponse.json(
-        { error: "댓글은 500자 이하여야 합니다." },
-        { status: 400 }
-      );
+      return createBadRequestResponse("댓글은 500자 이하여야 합니다.");
     }
 
     const supabase = createClerkSupabaseClient();
@@ -51,10 +56,7 @@ export async function POST(request: NextRequest) {
 
     if (userError || !userData) {
       console.error("User lookup error:", userError);
-      return NextResponse.json(
-        { error: "사용자를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("사용자를 찾을 수 없습니다.");
     }
 
     // 댓글 삽입
@@ -65,7 +67,8 @@ export async function POST(request: NextRequest) {
         user_id: userData.id,
         content: content.trim(),
       })
-      .select(`
+      .select(
+        `
         id,
         post_id,
         user_id,
@@ -76,14 +79,15 @@ export async function POST(request: NextRequest) {
           name,
           clerk_id
         )
-      `)
+      `,
+      )
       .single();
 
     if (commentError) {
       console.error("Comment insert error:", commentError);
-      return NextResponse.json(
-        { error: "댓글 작성에 실패했습니다." },
-        { status: 500 }
+      return createServerErrorResponse(
+        "댓글 작성에 실패했습니다.",
+        commentError,
       );
     }
 
@@ -102,34 +106,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error("Comments POST API error:", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return createServerErrorResponse(undefined, error);
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    console.log("API /api/comments DELETE called");
+    if (process.env.NODE_ENV === "development") {
+      console.log("API /api/comments DELETE called");
+    }
 
     // Clerk 인증 확인
     const { userId: clerkUserId } = await auth();
     if (!clerkUserId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+      return createUnauthorizedResponse();
     }
 
     // 요청 본문 파싱
     const { comment_id } = await request.json();
 
     if (!comment_id) {
-      return NextResponse.json(
-        { error: "comment_id가 필요합니다." },
-        { status: 400 }
-      );
+      return createBadRequestResponse("comment_id가 필요합니다.");
     }
 
     const supabase = createClerkSupabaseClient();
@@ -143,10 +140,7 @@ export async function DELETE(request: NextRequest) {
 
     if (userError || !userData) {
       console.error("User lookup error:", userError);
-      return NextResponse.json(
-        { error: "사용자를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("사용자를 찾을 수 없습니다.");
     }
 
     // 댓글 존재 및 소유자 확인
@@ -158,18 +152,12 @@ export async function DELETE(request: NextRequest) {
 
     if (commentCheckError) {
       console.error("Comment check error:", commentCheckError);
-      return NextResponse.json(
-        { error: "댓글을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return createNotFoundResponse("댓글을 찾을 수 없습니다.");
     }
 
     // 본인 댓글인지 확인
     if (commentData.user_id !== userData.id) {
-      return NextResponse.json(
-        { error: "본인의 댓글만 삭제할 수 있습니다." },
-        { status: 403 }
-      );
+      return createForbiddenResponse("본인의 댓글만 삭제할 수 있습니다.");
     }
 
     // 댓글 삭제
@@ -180,18 +168,15 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteError) {
       console.error("Comment delete error:", deleteError);
-      return NextResponse.json(
-        { error: "댓글 삭제에 실패했습니다." },
-        { status: 500 }
+      return createServerErrorResponse(
+        "댓글 삭제에 실패했습니다.",
+        deleteError,
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Comments DELETE API error:", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return createServerErrorResponse(undefined, error);
   }
 }
